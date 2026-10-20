@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { Icon, type IconName } from '../lib/icons'
 import { Link, navigate } from '../lib/router'
-import { BACKEND } from '../services/backend'
 import { useApp } from '../store/AppStore'
 
 const NAV: { to: string; label: string; icon: IconName; match: (p: string) => boolean }[] = [
@@ -9,6 +8,7 @@ const NAV: { to: string; label: string; icon: IconName; match: (p: string) => bo
   { to: '/likes', label: '좋아요', icon: 'heart', match: (p) => p === '/likes' },
   { to: '/chats', label: '대화', icon: 'chat', match: (p) => p.startsWith('/chats') },
   { to: '/profile', label: '내 프로필', icon: 'user', match: (p) => p === '/profile' },
+  { to: '/guide', label: '점수 안내', icon: 'info', match: (p) => p === '/guide' },
 ]
 
 export function Logo({ small = false }: { small?: boolean }) {
@@ -20,15 +20,6 @@ export function Logo({ small = false }: { small?: boolean }) {
         <circle cx="20" cy="14" r="4" fill="var(--paper)" />
       </svg>
       <span className="logo-word">Moa</span>
-    </span>
-  )
-}
-
-export function DemoBadge() {
-  return (
-    <span className="demo-badge" title={BACKEND.detail}>
-      <span className="demo-dot" />
-      {BACKEND.label}
     </span>
   )
 }
@@ -60,7 +51,6 @@ export function Shell({ path, children }: { path: string; children: ReactNode })
           ))}
         </nav>
         <div className="sidebar-foot">
-          <DemoBadge />
           <div className="me-mini">
             <div>
               <strong>{profile?.nickname ?? user?.nickname}</strong>
@@ -78,7 +68,6 @@ export function Shell({ path, children }: { path: string; children: ReactNode })
           <Logo small />
         </Link>
         <div className="topbar-right">
-          <DemoBadge />
           <button type="button" className="icon-btn" onClick={handleLogout} aria-label="로그아웃">
             <Icon name="logout" />
           </button>

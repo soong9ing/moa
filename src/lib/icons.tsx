@@ -23,6 +23,8 @@ export type IconName =
   | 'shield'
   | 'plus'
   | 'refresh'
+  | 'more'
+  | 'block'
 
 const paths: Record<IconName, string[]> = {
   home: ['M3 10.5 12 3l9 7.5', 'M5 9.5V20h14V9.5', 'M10 20v-5h4v5'],
@@ -45,6 +47,8 @@ const paths: Record<IconName, string[]> = {
   trophy: ['M8 4h8v5a4 4 0 0 1-8 0V4Z', 'M8 6H5a3 3 0 0 0 3 4', 'M16 6h3a3 3 0 0 1-3 4', 'M12 13v4', 'M8.5 20h7', 'M10 17h4v3h-4z'],
   shield: ['M12 3 5 6v5.5c0 4.5 3 7.8 7 9.5 4-1.7 7-5 7-9.5V6l-7-3Z', 'm9 12 2 2 4-4'],
   plus: ['M12 5v14', 'M5 12h14'],
+  more: ['M3.8 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0', 'M10.8 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0', 'M17.8 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0'],
+  block: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z', 'M5.6 5.6l12.8 12.8'],
   refresh: ['M20 11a8 8 0 0 0-14.7-3.5', 'M4 4v4h4', 'M4 13a8 8 0 0 0 14.7 3.5', 'M20 20v-4h-4'],
 }
 

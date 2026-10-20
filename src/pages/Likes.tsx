@@ -1,4 +1,4 @@
-import { Avatar, EmptyState, KindBadge } from '../components/visuals'
+import { Avatar, EmptyState } from '../components/visuals'
 import { findMockProfile } from '../data/mockProfiles'
 import { Icon } from '../lib/icons'
 import { Link, navigate } from '../lib/router'
@@ -36,7 +36,6 @@ export function Likes() {
                     <span className="muted small">
                       {p.age}세 · {p.tagline}
                     </span>
-                    <KindBadge kind={p.kind} />
                   </div>
                   <div className="like-score">
                     {r ? (
@@ -60,7 +59,7 @@ export function Likes() {
                       navigate(`/chats/${p.id}`)
                     }}
                   >
-                    <Icon name="chat" size={16} /> 데모 대화
+                    <Icon name="chat" size={16} /> 대화하기
                   </button>
                   <button
                     type="button"

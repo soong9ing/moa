@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
-import { Shell, Toasts } from './components/Shell'
+import { Logo, Shell, Toasts } from './components/Shell'
 import { matchPath, navigate, usePath } from './lib/router'
 import { Chats } from './pages/Chats'
 import { Feed } from './pages/Feed'
+import { Guide } from './pages/Guide'
 import { Landing } from './pages/Landing'
 import { Likes } from './pages/Likes'
 import { Login } from './pages/Login'
@@ -25,6 +26,7 @@ function Routes() {
 
   if (path === '/' ) return <Landing />
   if (path === '/login') return <Login />
+  if (path === '/guide' && !user) return <PublicGuide />
   if (!user) return null
 
   let page = null
@@ -32,12 +34,31 @@ function Routes() {
   if (path === '/feed') page = <Feed />
   else if (path === '/profile') page = <ProfilePage />
   else if (path === '/likes') page = <Likes />
+  else if (path === '/guide') page = <Guide />
   else if (path === '/chats') page = <Chats />
   else if ((m = matchPath('/chats/:id', path))) page = <Chats id={m.id} />
   else if ((m = matchPath('/match/:id', path))) page = <MatchDetail id={m.id} />
   else page = <NotFound />
 
   return <Shell path={path}>{page}</Shell>
+}
+
+function PublicGuide() {
+  return (
+    <div className="landing">
+      <header className="landing-nav">
+        <a href="#/" aria-label="Moa 처음 화면으로">
+          <Logo />
+        </a>
+        <div className="landing-nav-right">
+          <a href="#/login" className="btn btn-ghost">
+            로그인
+          </a>
+        </div>
+      </header>
+      <Guide />
+    </div>
+  )
 }
 
 function NotFound() {

@@ -66,7 +66,7 @@ export const demoAuth: AuthService = {
     if (!isValidEmail(key)) throw new Error('이메일 형식을 확인해 주세요.')
     if (!nickname.trim()) throw new Error('닉네임을 입력해 주세요.')
     const accounts = readAccounts()
-    if (accounts[key]) throw new Error('이 기기에 이미 같은 이메일의 데모 계정이 있어요. 로그인 탭을 이용해 주세요.')
+    if (accounts[key]) throw new Error('이미 가입된 이메일이에요. 로그인 탭을 이용해 주세요.')
     const user: SessionUser = { id: newId(), email: key, nickname: nickname.trim() }
     accounts[key] = user
     writeAccounts(accounts)
@@ -75,7 +75,7 @@ export const demoAuth: AuthService = {
   async logIn(email) {
     const key = normalizeEmail(email)
     const user = readAccounts()[key]
-    if (!user) throw new Error('이 기기에 해당 이메일의 데모 계정이 없어요. 회원가입을 먼저 해 주세요.')
+    if (!user) throw new Error('가입된 이메일이 아니에요. 이 브라우저에서 가입한 이메일인지 확인하거나 회원가입을 해 주세요.')
     return user
   },
   async logOut() {

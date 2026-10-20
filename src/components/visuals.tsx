@@ -56,8 +56,8 @@ export function Avatar({ profile, size = 56 }: { profile: Pick<Profile, 'id' | '
 
 export function KindBadge({ kind }: { kind: Profile['kind'] }) {
   return kind === 'mock' ? (
-    <span className="badge badge-mock" title="앱에 내장된 가상 인물이에요. 실존 인물이 아니에요.">
-      가상 프로필
+    <span className="badge badge-mock" title="Moa가 만든 캐릭터 프로필이에요. 대화는 자동 답장으로 이어져요.">
+      Moa 캐릭터
     </span>
   ) : (
     <span className="badge badge-user" title="로그인한 사용자 프로필">

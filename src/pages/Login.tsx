@@ -3,7 +3,6 @@ import { Logo } from '../components/Shell'
 import { Icon } from '../lib/icons'
 import { Link, navigate } from '../lib/router'
 import { isValidEmail } from '../services/auth'
-import { BACKEND } from '../services/backend'
 import { useApp } from '../store/AppStore'
 
 export function Login() {
@@ -23,7 +22,7 @@ export function Login() {
     try {
       if (mode === 'signup') {
         await signUp(email, nickname)
-        notify('데모 계정을 만들었어요. 이제 취향을 모아 볼까요?')
+        notify('가입을 마쳤어요. 이제 취향을 모아 볼까요?')
         navigate('/profile')
       } else {
         await logIn(email)
@@ -70,16 +69,6 @@ export function Login() {
           </button>
         </div>
 
-        <div className="notice notice-demo">
-          <Icon name="shield" size={18} />
-          <div>
-            <strong>{BACKEND.label}로 동작 중</strong>
-            <p>
-              실제 인증 서버가 연결되지 않아 <b>비밀번호를 받지 않아요.</b> 계정은 이 브라우저 안에서만 구분되고, 데이터는 이 기기에만 저장돼요.
-            </p>
-          </div>
-        </div>
-
         <form onSubmit={submit} className="form" noValidate>
           <label className="field">
             <span>이메일</span>
@@ -97,9 +86,13 @@ export function Login() {
             </p>
           )}
           <button className="btn btn-primary btn-lg btn-block" disabled={busy}>
-            {busy ? '잠시만요…' : mode === 'signup' ? '데모 계정 만들기' : '데모 계정으로 로그인'}
+            {busy ? '잠시만요…' : mode === 'signup' ? '가입하고 시작하기' : '로그인'}
           </button>
         </form>
+        <p className="auth-note">
+          <Icon name="info" size={14} />
+          <span>비밀번호 없이 이메일로 바로 시작해요. 계정과 기록은 이 브라우저에 저장되고, Moa에서 만나는 상대는 모두 Moa가 만든 캐릭터예요.</span>
+        </p>
         <p className="auth-foot">
           {mode === 'signup' ? '이미 이 기기에서 가입했나요? ' : '처음이신가요? '}
           <button type="button" className="text-btn" onClick={() => { setMode(mode === 'signup' ? 'login' : 'signup'); setError(null) }}>

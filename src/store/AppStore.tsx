@@ -5,18 +5,20 @@ import { demoAuth, type ChatMessage, type SessionUser } from '../services/auth'
 import { demoReply, openingLine } from '../services/demoReplies'
 import { EMPTY_PREFERENCES, type Preferences, type Profile } from '../types'
 
-/** 로그인한 사용자 한 명이 가진 데이터 (데모 모드에서는 localStorage에 저장) */
+/** 로그인한 사용자 한 명이 가진 데이터 (현재는 이 브라우저의 localStorage에 저장) */
 interface AccountData {
   profile: Profile | null
   prefs: Preferences
   likes: string[]
   chats: Record<string, ChatMessage[]>
+  /** 차단한 상대 id — 추천·좋아요·대화에서 모두 숨겨요 */
+  blocked: string[]
 }
 
 const SESSION_KEY = 'moa.v1.session'
 const dataKey = (userId: string) => `moa.v1.data.${userId}`
 
-const emptyData = (): AccountData => ({ profile: null, prefs: { ...EMPTY_PREFERENCES }, likes: [], chats: {} })
+const emptyData = (): AccountData => ({ profile: null, prefs: { ...EMPTY_PREFERENCES }, likes: [], chats: {}, blocked: [] })
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -46,8 +48,9 @@ interface AppState {
   prefs: Preferences
   likes: string[]
   chats: Record<string, ChatMessage[]>
+  blocked: string[]
   typing: Record<string, boolean>
-  /** 매칭 후보 풀 — 데모 모드에서는 가상 프로필만 */
+  /** 매칭 후보 풀 — 차단한 상대는 빠져요 */
   pool: Profile[]
   recommendation: Recommendation | null
   toasts: Toast[]
@@ -61,6 +64,9 @@ interface AppState {
   toggleLike(profileId: string): void
   startChat(profileId: string): void
   sendMessage(profileId: string, text: string): void
+  leaveChat(profileId: string): void
+  blockProfile(profileId: string): void
+  unblockProfile(profileId: string): void
   notify(text: string): void
   resetMyData(): void
 }
@@ -153,9 +159,40 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     setTimeout(() => {
       if (userRef.current?.id !== owner) return // 그 사이 로그아웃했다면 무시
       const reply: ChatMessage = { id: `m-${Date.now()}-r`, from: 'them', text: demoReply(p, body, turn), at: Date.now(), demo: true }
-      setData((d) => ({ ...d, chats: { ...d.chats, [id]: [...(d.chats[id] ?? []), reply] } }))
+      setData((d) => {
+        // 그 사이 채팅방을 나갔거나 차단했다면 답장을 넣지 않아요
+        if (!d.chats[id] || d.blocked.includes(id)) return d
+        return { ...d, chats: { ...d.chats, [id]: [...d.chats[id], reply] } }
+      })
       setTyping((t) => ({ ...t, [id]: false }))
     }, delay)
+  }, [])
+
+  const leaveChat = useCallback((id: string) => {
+    setData((d) => {
+      const chats = { ...d.chats }
+      delete chats[id]
+      return { ...d, chats }
+    })
+    setTyping((t) => ({ ...t, [id]: false }))
+  }, [])
+
+  const blockProfile = useCallback((id: string) => {
+    setData((d) => {
+      const chats = { ...d.chats }
+      delete chats[id]
+      return {
+        ...d,
+        chats,
+        likes: d.likes.filter((x) => x !== id),
+        blocked: d.blocked.includes(id) ? d.blocked : [id, ...d.blocked],
+      }
+    })
+    setTyping((t) => ({ ...t, [id]: false }))
+  }, [])
+
+  const unblockProfile = useCallback((id: string) => {
+    setData((d) => ({ ...d, blocked: d.blocked.filter((x) => x !== id) }))
   }, [])
 
   const resetMyData = useCallback(() => {
@@ -163,7 +200,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     setTyping({})
   }, [])
 
-  const pool = MOCK_PROFILES
+  const blocked = data.blocked
+  const pool = useMemo(() => MOCK_PROFILES.filter((p) => !blocked.includes(p.id)), [blocked])
   const recommendation = useMemo(
     () => (data.profile ? recommend(data.profile, data.prefs, pool) : null),
     [data.profile, data.prefs, pool],
@@ -175,6 +213,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     prefs: data.prefs,
     likes: data.likes,
     chats: data.chats,
+    blocked,
     typing,
     pool,
     recommendation,
@@ -188,6 +227,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     toggleLike,
     startChat,
     sendMessage,
+    leaveChat,
+    blockProfile,
+    unblockProfile,
     notify,
     resetMyData,
   }

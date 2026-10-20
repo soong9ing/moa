@@ -97,6 +97,9 @@ input, textarea { font: inherit; color: inherit; }
 .icon-btn:hover { background: var(--paper-2); color: var(--ink); }
 .text-btn { background: none; border: 0; padding: 0; color: var(--coral); font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .text-btn.danger { color: var(--danger); margin-top: 14px; }
+.btn-danger { background: var(--danger); color: #fff; }
+.reset-confirm { margin-top: 14px; padding: 14px; border-radius: var(--radius-sm); background: #fbe7e3; color: #8b2a1a; font-size: 0.88rem; display: flex; flex-direction: column; gap: 10px; }
+.reset-confirm div { display: flex; gap: 8px; }
 .back-link { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); font-weight: 500; background: none; border: 0; cursor: pointer; padding: 4px 0; margin-bottom: 14px; }
 .back-link:hover { color: var(--ink); }
 
@@ -520,7 +523,7 @@ input, textarea { font: inherit; color: inherit; }
   .topbar-right { display: flex; align-items: center; gap: 4px; }
   .main { margin-left: 0; padding: 20px 16px calc(96px + env(safe-area-inset-bottom)); }
   .tabbar {
-    display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: rgba(255, 253, 249, 0.95); backdrop-filter: blur(12px); border-top: 1px solid var(--line);
   }
   .tab { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; font-size: 0.72rem; color: var(--ink-3); font-weight: 500; }
@@ -574,4 +577,58 @@ input, textarea { font: inherit; color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+/* =========================================================
+   v1.2 — 점수 안내, 차단·나가기, 랜딩 하이라이트
+   ========================================================= */
+.nav-link { font-weight: 700; color: var(--ink-2); padding: 8px 6px; }
+.nav-link:hover { color: var(--ink); }
+
+.highlights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; padding: 20px 0 10px; }
+.highlights article { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; display: flex; flex-direction: column; gap: 6px; }
+.hl-icon { width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; background: var(--coral-soft); color: var(--coral); margin-bottom: 6px; }
+.highlights h3 { font-size: 1.1rem; }
+.highlights p { color: var(--ink-2); font-size: 0.93rem; }
+
+.auth-note { display: flex; gap: 6px; align-items: flex-start; margin-top: 16px; font-size: 0.82rem; color: var(--ink-3); }
+.auth-note svg { flex: none; margin-top: 3px; }
+
+.guide { display: flex; flex-direction: column; gap: 26px; }
+.guide .table-preview { margin-top: 0; }
+.guide-section h2 { font-size: 1.4rem; }
+.guide-section .steps { margin-top: 16px; }
+.guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.guide-card { padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+.guide-card h3 { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; color: var(--plum); }
+.guide-card p { color: var(--ink-2); font-size: 0.92rem; }
+.guide .disclaimer { margin-top: 0; }
+.guide-cta { display: flex; justify-content: center; }
+
+.room-menu { position: relative; }
+.menu-scrim { position: fixed; inset: 0; background: transparent; border: 0; z-index: 40; cursor: default; }
+.menu { position: absolute; right: 0; top: 44px; z-index: 41; min-width: 180px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 6px; animation: pop 0.15s var(--ease); }
+.menu button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0; background: transparent; border-radius: 10px; cursor: pointer; text-align: left; font-size: 0.92rem; }
+.menu button:hover { background: var(--paper-2); }
+.menu button.is-danger { color: var(--danger); }
+
+.thread-view { position: relative; }
+.sheet-wrap { position: absolute; inset: 0; z-index: 50; background: rgba(43, 29, 40, 0.35); display: flex; align-items: center; justify-content: center; padding: 16px; animation: pop 0.15s var(--ease); }
+.sheet { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 22px; max-width: 380px; width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.sheet h3 { font-size: 1.15rem; }
+.sheet p { color: var(--ink-2); font-size: 0.92rem; }
+.sheet-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+
+.day-note { display: inline-flex; align-items: center; gap: 6px; }
+.room-hint { align-self: center; color: var(--ink-3); font-size: 0.88rem; margin-top: 20px; }
+
+.blocked-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.blocked-list li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--paper); border-radius: 12px; }
+.blocked-list li > span { flex: 1; display: flex; flex-direction: column; line-height: 1.3; }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+
+@media (max-width: 860px) {
+  .highlights, .guide-grid { grid-template-columns: 1fr; }
+  .tabbar .tab { font-size: 0.68rem; }
+  .tab-icon { width: 40px; }
 }

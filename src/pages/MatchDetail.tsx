@@ -13,7 +13,7 @@ function compare(mine: readonly string[], theirs: readonly string[]) {
 }
 
 export function MatchDetail({ id }: { id: string }) {
-  const { profile: me, recommendation: rec, likes, toggleLike, startChat, notify, updatePrefs } = useApp()
+  const { profile: me, recommendation: rec, likes, blocked, toggleLike, startChat, notify, updatePrefs, unblockProfile } = useApp()
   const p = findMockProfile(id)
 
   if (!p) {
@@ -27,6 +27,36 @@ export function MatchDetail({ id }: { id: string }) {
     return (
       <div className="page">
         <EmptyState icon="user" title="궁합을 보려면 내 프로필이 필요해요" action={<Link to="/profile" className="btn btn-primary">프로필 등록하기</Link>} />
+      </div>
+    )
+  }
+
+  if (blocked.includes(id)) {
+    return (
+      <div className="page">
+        <EmptyState
+          icon="shield"
+          title={`${p.nickname}님을 차단했어요`}
+          action={
+            <div className="row-actions">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  unblockProfile(id)
+                  notify(`${p.nickname}님 차단을 풀었어요`)
+                }}
+              >
+                차단 풀기
+              </button>
+              <Link to="/feed" className="btn btn-primary">
+                추천으로 돌아가기
+              </Link>
+            </div>
+          }
+        >
+          차단한 사람은 추천, 좋아요, 대화 목록에 나오지 않아요.
+        </EmptyState>
       </div>
     )
   }
@@ -78,7 +108,7 @@ export function MatchDetail({ id }: { id: string }) {
               navigate(`/chats/${id}`)
             }}
           >
-            <Icon name="chat" size={18} /> 데모 대화
+            <Icon name="chat" size={18} /> 대화하기
           </button>
         </div>
       </section>

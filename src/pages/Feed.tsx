@@ -1,6 +1,6 @@
 import { CandidateCard } from '../components/CandidateCard'
 import { ActiveFilterChips, ExcludedList, FILTER_LABEL, RELAX, ZeroCandidates } from '../components/FilterPanels'
-import { Avatar, CATEGORY_COLOR, Chip, Disclaimer, EmptyState, KindBadge, ScoreRing } from '../components/visuals'
+import { Avatar, CATEGORY_COLOR, Chip, Disclaimer, EmptyState, ScoreRing } from '../components/visuals'
 import { Icon } from '../lib/icons'
 import { Link, navigate } from '../lib/router'
 import { explainTop, type FilterKey } from '../matching'
@@ -21,7 +21,7 @@ export function Feed() {
             </Link>
           }
         >
-          프로필과 찾는 상대 조건을 저장하면, {`가상 프로필`} 중에서 잘 맞는 사람을 점수로 골라 드려요.
+          프로필과 찾는 상대 조건을 저장하면, Moa에 있는 사람들 중에서 잘 맞는 사람을 점수로 골라 드려요.
         </EmptyState>
       </div>
     )
@@ -44,7 +44,7 @@ export function Feed() {
           <p className="eyebrow">오늘의 추천</p>
           <h1>{profile.nickname}님과 취향이 닮은 사람</h1>
           <p className="sub">
-            가상 프로필 {rec.poolSize}명 중 <b>{rec.ranked.length}명</b>이 필수 조건을 통과했어요
+            {rec.poolSize}명 중 <b>{rec.ranked.length}명</b>이 필수 조건을 통과했어요
             {rec.excluded.length > 0 && <> · {rec.excluded.length}명 제외</>}
           </p>
         </div>
@@ -74,7 +74,6 @@ export function Feed() {
                 <div>
                   <h2>
                     {top.profile.nickname}
-                    <KindBadge kind={top.profile.kind} />
                   </h2>
                   <p className="muted">
                     {top.profile.age}세 · {top.profile.height}cm{top.profile.travel ? ` · ${top.profile.travel} 여행` : ''}
@@ -145,7 +144,7 @@ export function Feed() {
                   navigate(`/chats/${top.profile.id}`)
                 }}
               >
-                <Icon name="chat" size={18} /> 데모 대화
+                <Icon name="chat" size={18} /> 대화하기
               </button>
             </div>
             <Disclaimer compact />

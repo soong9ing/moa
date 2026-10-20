@@ -2,7 +2,7 @@ import type { RankedCandidate } from '../matching'
 import { Link } from '../lib/router'
 import { Icon } from '../lib/icons'
 import { useApp } from '../store/AppStore'
-import { Avatar, CATEGORY_COLOR, KindBadge } from './visuals'
+import { Avatar, CATEGORY_COLOR } from './visuals'
 
 /** 추천 피드 목록용 카드 — 순위, 프로필 요약, 점수 막대(항목별 색) */
 export function CandidateCard({ item, index = 0 }: { item: RankedCandidate; index?: number }) {
@@ -20,7 +20,6 @@ export function CandidateCard({ item, index = 0 }: { item: RankedCandidate; inde
             <span className="muted">
               {p.age}세 · {p.height}cm
             </span>
-            <KindBadge kind={p.kind} />
           </div>
           <p className="cand-tag">{p.tagline ?? p.bio}</p>
           <div className="cand-bar" aria-hidden="true">

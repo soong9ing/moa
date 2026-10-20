@@ -12,6 +12,7 @@ import {
   STYLE_TAGS,
   TRAVEL_STYLES,
 } from '../data/options'
+import { findMockProfile } from '../data/mockProfiles'
 import { Icon } from '../lib/icons'
 import { navigate } from '../lib/router'
 import { DEFAULT_SCORE_TABLE, getActiveFilters, ruleMax, type ScoreKey } from '../matching'
@@ -101,7 +102,7 @@ function Row({ label, score, children, note }: { label: string; score?: ScoreKey
 const numOrNull = (s: string): number | null => (s.trim() === '' ? null : Number(s))
 
 export function ProfilePage() {
-  const { user, profile, prefs: savedPrefs, saveProfile, savePrefs, notify, resetMyData } = useApp()
+  const { user, profile, prefs: savedPrefs, saveProfile, savePrefs, notify, resetMyData, blocked, unblockProfile } = useApp()
   const [draft, setDraft] = useState<Draft>(() =>
     profile
       ? { ...profile }
@@ -123,6 +124,7 @@ export function ProfilePage() {
   )
   const [prefs, setPrefs] = useState<Preferences>(savedPrefs)
   const [errors, setErrors] = useState<string[]>([])
+  const [confirmReset, setConfirmReset] = useState(false)
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }))
   const setP = <K extends keyof Preferences>(k: K, v: Preferences[K]) => setPrefs((p) => ({ ...p, [k]: v }))
@@ -318,6 +320,35 @@ export function ProfilePage() {
               />
             </Row>
           </Section>
+          {blocked.length > 0 && (
+            <Section title="차단한 사람" hint="차단한 사람은 추천, 좋아요, 대화 목록에 나오지 않아요.">
+              <ul className="blocked-list">
+                {blocked.map((bid) => {
+                  const bp = findMockProfile(bid)
+                  if (!bp) return null
+                  return (
+                    <li key={bid}>
+                      <Avatar profile={bp} size={36} />
+                      <span>
+                        <strong>{bp.nickname}</strong>
+                        <small className="muted">{bp.age}세</small>
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-small btn-ghost"
+                        onClick={() => {
+                          unblockProfile(bid)
+                          notify(`${bp.nickname}님 차단을 풀었어요`)
+                        }}
+                      >
+                        차단 풀기
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </Section>
+          )}
         </div>
 
         <aside className="profile-aside">
@@ -346,7 +377,7 @@ export function ProfilePage() {
 
             <h3>적용될 필수 필터</h3>
             {active.length === 0 ? (
-              <p className="muted small">없음 — 모든 가상 프로필이 후보가 돼요.</p>
+              <p className="muted small">없음 — 모든 사람이 후보가 돼요.</p>
             ) : (
               <ul className="filters-mini">
                 {active.map((f) => (
@@ -368,21 +399,33 @@ export function ProfilePage() {
               </button>
             </div>
           </div>
-          {profile && (
-            <button
-              type="button"
-              className="text-btn danger small"
-              onClick={() => {
-                if (window.confirm('이 기기에 저장된 내 프로필·좋아요·대화를 모두 지울까요?')) {
-                  resetMyData()
-                  notify('내 데이터를 초기화했어요')
-                  navigate('/feed')
-                }
-              }}
-            >
-              내 데이터 초기화
-            </button>
-          )}
+          {profile &&
+            (confirmReset ? (
+              <div className="reset-confirm" role="alertdialog" aria-label="내 데이터 초기화 확인">
+                <p>이 기기에 저장된 내 프로필·좋아요·대화를 모두 지울까요?</p>
+                <div>
+                  <button
+                    type="button"
+                    className="btn btn-small btn-danger"
+                    onClick={() => {
+                      resetMyData()
+                      setConfirmReset(false)
+                      notify('내 데이터를 초기화했어요')
+                      navigate('/feed')
+                    }}
+                  >
+                    모두 지우기
+                  </button>
+                  <button type="button" className="btn btn-small btn-ghost" onClick={() => setConfirmReset(false)}>
+                    취소
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="text-btn danger small" onClick={() => setConfirmReset(true)}>
+                내 데이터 초기화
+              </button>
+            ))}
         </aside>
       </div>
 

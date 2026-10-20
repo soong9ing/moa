@@ -13,8 +13,12 @@ function currentPath(): string {
 export function navigate(to: string, opts: { replace?: boolean } = {}) {
   const target = '#' + to
   if (opts.replace) {
-    window.history.replaceState(null, '', target)
-    window.dispatchEvent(new HashChangeEvent('hashchange'))
+    try {
+      window.history.replaceState(null, '', target)
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    } catch {
+      window.location.hash = to // 일부 임베드 환경에서는 history API가 막혀 있어요
+    }
   } else {
     window.location.hash = to
   }

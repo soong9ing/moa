@@ -1,12 +1,16 @@
 import type { CSSProperties } from 'react'
-import { Logo, DemoBadge } from '../components/Shell'
-import { Avatar, Disclaimer } from '../components/visuals'
+import { Logo } from '../components/Shell'
+import { Avatar } from '../components/visuals'
 import { MOCK_PROFILES } from '../data/mockProfiles'
-import { Icon } from '../lib/icons'
+import { Icon, type IconName } from '../lib/icons'
 import { Link } from '../lib/router'
-import { DEFAULT_SCORE_TABLE, SCORE_KEYS, ruleMax, tableTotal } from '../matching'
-import { CATEGORY_COLOR } from '../components/visuals'
 import { useApp } from '../store/AppStore'
+
+const HIGHLIGHTS: { icon: IconName; title: string; body: string }[] = [
+  { icon: 'heart', title: '취향으로 만나요', body: '성격, 취미, 음악, 여행 스타일이 닮은 사람을 먼저 보여 드려요.' },
+  { icon: 'sparkle', title: '추천 이유까지', body: '왜 이 사람인지 항목별 점수와 겹치는 취향으로 설명해요.' },
+  { icon: 'chat', title: '마음에 들면 대화', body: '좋아요를 누르고 바로 대화를 시작할 수 있어요.' },
+]
 
 export function Landing() {
   const { user, profile } = useApp()
@@ -18,7 +22,9 @@ export function Landing() {
       <header className="landing-nav">
         <Logo />
         <div className="landing-nav-right">
-          <DemoBadge />
+          <Link to="/guide" className="nav-link">
+            점수 안내
+          </Link>
           <Link to={user ? cta : '/login'} className="btn btn-ghost">
             {user ? '앱으로 가기' : '로그인'}
           </Link>
@@ -34,16 +40,16 @@ export function Landing() {
             맞는 사람을 <span className="underline">알아보다</span>
           </h1>
           <p className="lead">
-            성격·취미·음악·여행 취향을 고르면, Moa가 정해진 점수표로 한 명 한 명 비교해요. 왜 그 사람이 1위인지 항목별 점수까지 모두 보여 드려요.
+            성격·취미·음악·여행 취향을 고르면, Moa가 한 명 한 명 비교해 잘 맞는 사람을 추천해요. 왜 그 사람인지 항목별 점수까지 모두 보여 드려요.
           </p>
           <div className="hero-cta">
             <Link to={cta} className="btn btn-primary btn-lg">
               {user ? '추천 보러 가기' : '내 취향 모으기 시작'}
               <Icon name="chevron" size={18} />
             </Link>
-            <a href="#how" className="btn btn-ghost btn-lg" onClick={(e) => { e.preventDefault(); document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' }) }}>
+            <Link to="/guide" className="btn btn-ghost btn-lg">
               점수는 어떻게 매겨요?
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -59,55 +65,24 @@ export function Landing() {
               <span>취향 궁합</span>
             </div>
           </div>
-          <p className="hero-art-note">그림 속 인물은 모두 가상 프로필이에요</p>
         </div>
       </section>
 
-      <section id="how" className="how">
-        <h2>세 단계로 끝나요</h2>
-        <ol className="steps">
-          <li>
-            <span className="step-n">1</span>
-            <h3>취향 모으기</h3>
-            <p>성격·취미·음악·여행 취향과 찾는 상대 조건을 골라요. 고르지 않은 항목은 점수에도 필터에도 쓰지 않아요.</p>
-          </li>
-          <li>
-            <span className="step-n">2</span>
-            <h3>필수 조건 거르기</h3>
-            <p>"필수"로 켠 조건에 맞지 않는 후보는 먼저 빠지고, 누가 왜 빠졌는지 그대로 보여 줘요.</p>
-          </li>
-          <li>
-            <span className="step-n">3</span>
-            <h3>점수로 비교하기</h3>
-            <p>남은 후보를 아래 점수표로 계산해 높은 순서로 정렬해요. 1위가 된 이유도 숫자로 설명해요.</p>
-          </li>
-        </ol>
-      </section>
-
-      <section className="table-preview">
-        <div className="tp-head">
-          <h2>Moa 점수표</h2>
-          <p>총 {tableTotal()}점 · 모든 추천이 이 표 하나로만 계산돼요</p>
-        </div>
-        <ul className="tp-list">
-          {SCORE_KEYS.map((k) => {
-            const r = DEFAULT_SCORE_TABLE[k]
-            return (
-              <li key={k}>
-                <span className="tp-bar" style={{ width: `${ruleMax(r) * 3}%`, background: CATEGORY_COLOR[k] }} />
-                <span className="tp-label">{r.label}</span>
-                <span className="tp-desc">{r.description}</span>
-                <b>{ruleMax(r)}점</b>
-              </li>
-            )
-          })}
-        </ul>
-        <Disclaimer />
+      <section className="highlights">
+        {HIGHLIGHTS.map((h) => (
+          <article key={h.title}>
+            <span className="hl-icon">
+              <Icon name={h.icon} size={20} />
+            </span>
+            <h3>{h.title}</h3>
+            <p>{h.body}</p>
+          </article>
+        ))}
       </section>
 
       <footer className="landing-foot">
         <Logo small />
-        <p>Moa는 개인 프로젝트 데모예요. 등장하는 {MOCK_PROFILES.length}명의 프로필은 모두 지어낸 가상 인물이고, 실제 사진을 쓰지 않았어요.</p>
+        <p>Moa에서 만나는 상대 프로필은 모두 Moa가 만든 캐릭터이고, 대화는 캐릭터의 자동 답장으로 이어져요.</p>
       </footer>
     </div>
   )
