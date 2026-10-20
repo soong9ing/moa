@@ -6,6 +6,9 @@ import {
   applyFilters,
   exclusionStats,
   explainTop,
+  groupByFilter,
+  bestPossibleScore,
+  maxAchievableScore,
   recommend,
   scoreCandidate,
   tableTotal,
@@ -192,6 +195,22 @@ describe('필수 조건 필터', () => {
     expect(r.activeFilters).toHaveLength(0)
     expect(r.passed).toHaveLength(4)
   })
+
+  it('제외 후보를 조건별로 묶는다 (여러 조건에 걸린 사람은 탭마다 나온다)', () => {
+    const r = applyFilters(
+      me,
+      prefs({ gender: '여성', ageMin: 25, ageMax: 30, ageRequired: true, religion: '무교', religionRequired: true }),
+      pool,
+    )
+    const groups = groupByFilter(r.excluded)
+    const byKey = Object.fromEntries(groups.map((g) => [g.key, g.items.map((i) => i.candidate.profile.id)]))
+    expect(byKey.gender).toEqual(['f2', 'f4'])
+    expect(byKey.religion).toEqual(['f3', 'f4'])
+    expect(byKey.age).toEqual(['f3'])
+    const gender = groups.find((g) => g.key === 'gender')!
+    expect(gender.onlyCount).toBe(1) // f2만 성별 하나 때문에 빠짐
+    expect(gender.items.find((i) => i.candidate.profile.id === 'f4')!.others.map((o) => o.key)).toEqual(['religion'])
+  })
 })
 
 // ---------- 추천 ----------
@@ -269,6 +288,23 @@ describe('설명 문장', () => {
     const pool = [person({ id: 'j1', nickname: '하늘', travel: '계획형' }), person({ id: 'j2', nickname: '별빛', travel: '계획형' })]
     const why = explainTop(recommend(me, prefs(), pool)).join(' ')
     expect(why).toContain('2위 하늘과') // 동점 → 가나다순으로 별빛 1위, 하늘 2위
+  })
+})
+
+// ---------- 현실적인 최고 점수 ----------
+describe('현실적인 최고 점수', () => {
+  it('상대와 완벽히 맞는 사용자의 실제 점수와 같다 (모든 캐릭터)', () => {
+    for (const p of MOCK_PROFILES) {
+      const twin: Profile = { ...p, id: 'me', kind: 'user' }
+      const r = scoreCandidate(twin, prefs({ ageMin: p.age, ageMax: p.age, religion: p.religion, styleTags: p.styles.slice(0, 1) }), p)
+      expect(r.total).toBe(bestPossibleScore(p))
+    }
+  })
+  it('후보 전체 최고점은 100점을 넘지 않고, 빈 후보면 0점', () => {
+    const m = maxAchievableScore(MOCK_PROFILES)
+    expect(m).toBeGreaterThan(0)
+    expect(m).toBeLessThanOrEqual(100)
+    expect(maxAchievableScore([])).toBe(0)
   })
 })
 

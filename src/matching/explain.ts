@@ -1,4 +1,4 @@
-import type { ExcludedCandidate, FilterKey } from './filters'
+import type { ExcludedCandidate, ExclusionReason, FilterKey } from './filters'
 import type { RankedCandidate, Recommendation } from './recommend'
 import { josa } from '../lib/josa'
 
@@ -82,4 +82,25 @@ export function exclusionStats(excluded: ExcludedCandidate[]): { key: FilterKey;
   return [...map.entries()]
     .map(([key, v]) => ({ key, ...v }))
     .sort((a, b) => b.onlyReason - a.onlyReason || b.count - a.count)
+}
+
+export interface FilterGroup {
+  key: FilterKey
+  /** 이 조건 하나 때문에만 빠진 사람 수 */
+  onlyCount: number
+  items: { candidate: ExcludedCandidate; reason: ExclusionReason; others: ExclusionReason[] }[]
+}
+
+/** 제외 후보를 걸린 조건별로 묶어요. 여러 조건에 걸린 사람은 해당하는 탭마다 나와요. */
+export function groupByFilter(excluded: ExcludedCandidate[]): FilterGroup[] {
+  const map = new Map<FilterKey, FilterGroup>()
+  for (const c of excluded) {
+    for (const r of c.reasons) {
+      const g = map.get(r.key) ?? { key: r.key, onlyCount: 0, items: [] }
+      g.items.push({ candidate: c, reason: r, others: c.reasons.filter((o) => o.key !== r.key) })
+      if (c.reasons.length === 1) g.onlyCount += 1
+      map.set(r.key, g)
+    }
+  }
+  return [...map.values()].sort((a, b) => b.items.length - a.items.length)
 }

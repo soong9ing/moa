@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ActiveFilter, ExcludedCandidate, FilterKey } from '../matching'
-import { exclusionStats } from '../matching'
+import { exclusionStats, groupByFilter } from '../matching'
 import { Icon } from '../lib/icons'
 import { Link } from '../lib/router'
 import type { Preferences } from '../types'
@@ -39,10 +39,24 @@ export function ActiveFilterChips({ filters }: { filters: ActiveFilter[] }) {
   )
 }
 
-/** 필터에서 제외된 후보와 이유 */
-export function ExcludedList({ excluded, defaultOpen = false }: { excluded: ExcludedCandidate[]; defaultOpen?: boolean }) {
+/** 필터에서 제외된 후보 — 필수 조건(카테고리)별 탭으로 나눠 보여 줘요 */
+export function ExcludedList({
+  excluded,
+  defaultOpen = false,
+  onRelax,
+}: {
+  excluded: ExcludedCandidate[]
+  defaultOpen?: boolean
+  onRelax?: (key: FilterKey) => void
+}) {
   const [open, setOpen] = useState(defaultOpen)
+  const groups = groupByFilter(excluded)
+  const [selected, setSelected] = useState<FilterKey | null>(null)
   if (excluded.length === 0) return null
+
+  // 선택한 탭이 사라졌으면(조건을 풀었으면) 가장 많은 탭으로
+  const active = groups.find((g) => g.key === selected) ?? groups[0]
+
   return (
     <section className="card excluded">
       <button type="button" className="excluded-head" aria-expanded={open} onClick={() => setOpen(!open)}>
@@ -52,26 +66,54 @@ export function ExcludedList({ excluded, defaultOpen = false }: { excluded: Excl
         <Icon name="chevron" size={18} className={`chev${open ? ' is-open' : ''}`} />
       </button>
       {open && (
-        <ul className="excluded-list">
-          {excluded.map((e) => (
-            <li key={e.profile.id}>
-              <Link to={`/match/${e.profile.id}`} className="ex-person">
-                <Avatar profile={e.profile} size={36} />
-                <span>
-                  <strong>{e.profile.nickname}</strong>
-                  <small>{e.profile.age}세</small>
-                </span>
-              </Link>
-              <div className="ex-reasons">
-                {e.reasons.map((r, i) => (
-                  <span key={i} className="reason">
-                    <b>{FILTER_LABEL[r.key]}</b> {r.message}
-                  </span>
-                ))}
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="ex-body">
+          <div className="ex-tabs" role="tablist" aria-label="필수 조건별 제외 후보">
+            {groups.map((g) => (
+              <button
+                key={g.key}
+                type="button"
+                role="tab"
+                aria-selected={g.key === active.key}
+                className={`ex-tab${g.key === active.key ? ' is-on' : ''}`}
+                onClick={() => setSelected(g.key)}
+              >
+                {FILTER_LABEL[g.key]}
+                <em>{g.items.length}</em>
+              </button>
+            ))}
+          </div>
+
+          <div className="ex-panel" role="tabpanel">
+            <div className="ex-panel-head">
+              <p>
+                <b>{FILTER_LABEL[active.key]}</b> 조건에 맞지 않아 제외된 {active.items.length}명
+                {active.onlyCount > 0 && <span className="muted"> · 이 조건만 풀면 {active.onlyCount}명이 다시 후보가 돼요</span>}
+              </p>
+              {onRelax && (
+                <button type="button" className="btn btn-small btn-ghost" onClick={() => onRelax(active.key)}>
+                  이 조건 풀기
+                </button>
+              )}
+            </div>
+            <ul className="excluded-list">
+              {active.items.map(({ candidate, reason, others }) => (
+                <li key={candidate.profile.id}>
+                  <Link to={`/match/${candidate.profile.id}`} className="ex-person">
+                    <Avatar profile={candidate.profile} size={36} />
+                    <span>
+                      <strong>{candidate.profile.nickname}</strong>
+                      <small>{candidate.profile.age}세</small>
+                    </span>
+                  </Link>
+                  <div className="ex-reasons">
+                    <span className="reason">{reason.message}</span>
+                    {others.length > 0 && <span className="reason-other">그 외 {others.map((o) => FILTER_LABEL[o.key]).join(', ')} 조건에도 걸려요</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       )}
     </section>
   )

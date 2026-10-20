@@ -1,9 +1,9 @@
-import type { CSSProperties } from 'react'
 import { Logo } from '../components/Shell'
-import { Avatar } from '../components/visuals'
+import { SolarSystem } from '../components/SolarSystem'
 import { MOCK_PROFILES } from '../data/mockProfiles'
 import { Icon, type IconName } from '../lib/icons'
 import { Link } from '../lib/router'
+import { maxAchievableScore } from '../matching'
 import { useApp } from '../store/AppStore'
 
 const HIGHLIGHTS: { icon: IconName; title: string; body: string }[] = [
@@ -13,9 +13,10 @@ const HIGHLIGHTS: { icon: IconName; title: string; body: string }[] = [
 ]
 
 export function Landing() {
-  const { user, profile } = useApp()
+  const { user, profile, pool } = useApp()
   const cta = user ? (profile ? '/feed' : '/profile') : '/login'
-  const orbit = MOCK_PROFILES.slice(0, 8)
+  // 현실적으로 받을 수 있는 최고 점수 — 데이터에서 직접 계산해요 (지금은 67점)
+  const bestScore = maxAchievableScore(MOCK_PROFILES)
 
   return (
     <div className="landing">
@@ -53,18 +54,8 @@ export function Landing() {
           </div>
         </div>
 
-        <div className="hero-art" aria-hidden="true">
-          <div className="orbit">
-            {orbit.map((p, i) => (
-              <span key={p.id} className="orbit-item" style={{ '--i': i, '--n': orbit.length } as CSSProperties}>
-                <Avatar profile={p} size={54} />
-              </span>
-            ))}
-            <div className="orbit-core">
-              <strong>87</strong>
-              <span>취향 궁합</span>
-            </div>
-          </div>
+        <div className="hero-art">
+          <SolarSystem profiles={user ? pool : MOCK_PROFILES} me={profile} score={bestScore} />
         </div>
       </section>
 

@@ -60,7 +60,7 @@ export function Feed() {
       {!top ? (
         <>
           <ZeroCandidates excluded={rec.excluded} onRelax={relax} />
-          <ExcludedList excluded={rec.excluded} defaultOpen />
+          <ExcludedList excluded={rec.excluded} defaultOpen onRelax={relax} />
         </>
       ) : (
         <>
@@ -164,7 +164,7 @@ export function Feed() {
             </section>
           )}
 
-          <ExcludedList excluded={rec.excluded} />
+          <ExcludedList excluded={rec.excluded} onRelax={relax} />
         </>
       )}
     </div>

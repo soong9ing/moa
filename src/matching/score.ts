@@ -145,3 +145,26 @@ export function scoreCandidate(
   const maxPossible = categories.reduce((s, c) => s + (c.used ? c.max : 0), 0)
   return { total, tableMax, maxPossible, categories }
 }
+
+/**
+ * 이 상대에게서 받을 수 있는 가장 높은 점수.
+ * 내 취향과 선호 조건이 상대와 완벽하게 맞는다고 가정해요.
+ * (성격·취미·음악은 상대가 가진 항목 수만큼만 겹칠 수 있어요.)
+ */
+export function bestPossibleScore(candidate: Profile, table: ScoreTable = DEFAULT_SCORE_TABLE): number {
+  const count: Record<ScoreKey, number> = {
+    age: 1,
+    personality: candidate.personality.length,
+    hobbies: candidate.hobbies.length,
+    music: candidate.music.length,
+    travel: candidate.travel ? 1 : 0,
+    religion: candidate.religion ? 1 : 0,
+    style: candidate.styles.length > 0 ? 1 : 0,
+  }
+  return SCORE_KEYS.reduce((sum, k) => sum + perItemScore(table[k], count[k]), 0)
+}
+
+/** 후보 전체 중 현실적으로 받을 수 있는 최고 궁합 점수 */
+export function maxAchievableScore(pool: Profile[], table: ScoreTable = DEFAULT_SCORE_TABLE): number {
+  return pool.reduce((best, p) => Math.max(best, bestPossibleScore(p, table)), 0)
+}
