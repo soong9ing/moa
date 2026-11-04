@@ -54,6 +54,51 @@ export function saveLlmSettings(s: LlmSettings) {
 
 const trimSlash = (u: string) => u.trim().replace(/\/+$/, '')
 
+// ---------- 공유 링크로 운영자 LLM 쓰기 ----------
+
+/**
+ * 공유 링크(?llm=…)로 받을 수 있는 주소인지 확인해요.
+ * 남이 만든 링크로 내 정보가 엉뚱한 서버에 가지 않도록,
+ * Cloudflare 임시 주소(https://*.trycloudflare.com)와 내 컴퓨터 주소만 받아요.
+ */
+export function isAllowedLlmUrl(raw: string): boolean {
+  let u: URL
+  try {
+    u = new URL(raw)
+  } catch {
+    return false
+  }
+  if (u.username || u.password || u.search || u.hash) return false
+  if (u.pathname !== '/' && u.pathname !== '') return false
+  if (u.protocol === 'https:' && /^[a-z0-9-]+\.trycloudflare\.com$/.test(u.hostname)) return true
+  if (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1')) return true
+  return false
+}
+
+/** 내 컴퓨터가 아닌 곳(운영자 컴퓨터)의 LLM을 쓰는 중인지 */
+export function isRemoteLlm(baseUrl: string): boolean {
+  try {
+    const h = new URL(baseUrl).hostname
+    return h !== 'localhost' && h !== '127.0.0.1'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 주소창의 ?llm=… 을 읽어 LLM 주소로 저장해요.
+ * 받아들였으면 그 주소를, 아니면 null을 돌려줘요.
+ */
+export function adoptSharedLlm(search: string): string | null {
+  const raw = new URLSearchParams(search).get('llm')
+  if (!raw) return null
+  const url = trimSlash(raw)
+  if (!isAllowedLlmUrl(url)) return null
+  const cur = loadLlmSettings()
+  saveLlmSettings({ ...cur, baseUrl: url })
+  return url
+}
+
 // ---------- 프롬프트 (순수 함수 — 테스트 가능) ----------
 
 /**
@@ -291,8 +336,8 @@ export function findUnsupportedNumbers(text: string, f: ExplainFacts): number[] 
 // ---------- Ollama 호출 ----------
 
 export class LlmError extends Error {
-  kind: 'connect' | 'model' | 'http'
-  constructor(message: string, kind: 'connect' | 'model' | 'http') {
+  kind: 'connect' | 'model' | 'http' | 'busy'
+  constructor(message: string, kind: 'connect' | 'model' | 'http' | 'busy') {
     super(message)
     this.kind = kind
   }
@@ -309,15 +354,25 @@ export async function pickModel(s: LlmSettings): Promise<string> {
   return found
 }
 
+/** 운영자 LLM(공유 서버)이 돌려주는 상태 코드를 알기 쉬운 말로 바꿔요 */
+function checkStatus(res: Response, s: LlmSettings) {
+  if (res.ok) return
+  if (res.status === 429) throw new LlmError('지금 Moa에게 소개를 부탁한 사람이 많아요. 1분쯤 뒤에 다시 눌러 주세요.', 'busy')
+  if (isRemoteLlm(s.baseUrl) && (res.status === 502 || res.status === 503 || res.status === 530))
+    throw new LlmError('Moa의 LLM이 지금 꺼져 있어요.', 'connect')
+  if (res.status !== 404) throw new LlmError(`LLM이 오류를 돌려줬어요 (${res.status}).`, 'http')
+}
+
 /** 설치된 모델 목록 (연결 확인용) */
 export async function listModels(s: LlmSettings): Promise<string[]> {
   let res: Response
   try {
     res = await fetch(`${trimSlash(s.baseUrl)}/api/tags`)
   } catch {
-    throw new LlmError('내 LLM(Ollama)에 연결할 수 없어요.', 'connect')
+    throw new LlmError(isRemoteLlm(s.baseUrl) ? 'Moa의 LLM에 연결할 수 없어요.' : '내 LLM(Ollama)에 연결할 수 없어요.', 'connect')
   }
-  if (!res.ok) throw new LlmError(`Ollama가 오류를 돌려줬어요 (${res.status}).`, 'http')
+  if (res.status === 404) throw new LlmError('LLM 주소가 맞는지 확인해 주세요 (404).', 'http')
+  checkStatus(res, s)
   const json = (await res.json()) as { models?: { name: string }[] }
   return (json.models ?? []).map((m) => m.name)
 }
@@ -352,9 +407,10 @@ export async function streamExplanation(
     })
   } catch (e) {
     if (signal?.aborted) throw e
-    throw new LlmError('내 LLM(Ollama)에 연결할 수 없어요.', 'connect')
+    throw new LlmError(isRemoteLlm(s.baseUrl) ? 'Moa의 LLM에 연결할 수 없어요.' : '내 LLM(Ollama)에 연결할 수 없어요.', 'connect')
   }
   if (res.status === 404) throw new LlmError(`'${model}' 모델을 찾을 수 없어요. 설정에서 모델 이름을 확인해 주세요.`, 'model')
+  checkStatus(res, s)
   if (!res.ok || !res.body) throw new LlmError(`Ollama가 오류를 돌려줬어요 (${res.status}).`, 'http')
 
   // Ollama는 한 줄에 JSON 하나씩(NDJSON) 보내요

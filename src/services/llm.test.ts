@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { MOCK_PROFILES } from '../data/mockProfiles'
 import { recommend } from '../matching'
 import { EMPTY_PREFERENCES, type Profile } from '../types'
-import { ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, pickModel, systemPrompt, talkingPoints } from './llm'
+import { LlmError, ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, isAllowedLlmUrl, isRemoteLlm, listModels, pickModel, systemPrompt, talkingPoints } from './llm'
 
 const me: Profile = {
   id: 'user-me',
@@ -105,5 +105,36 @@ describe('모델 고르기', () => {
   })
   it('직접 고른 다른 모델은 그대로 쓴다', async () => {
     expect(await pickModel({ ...base, model: 'llama3.2:3b' })).toBe('llama3.2:3b')
+  })
+})
+
+describe('공유 링크로 운영자 LLM 쓰기', () => {
+  it('Cloudflare 임시 주소와 내 컴퓨터 주소만 받는다', () => {
+    expect(isAllowedLlmUrl('https://happy-moa-test.trycloudflare.com')).toBe(true)
+    expect(isAllowedLlmUrl('http://localhost:11434')).toBe(true)
+    expect(isAllowedLlmUrl('http://127.0.0.1:8787')).toBe(true)
+  })
+  it('엉뚱한 서버나 속임 주소는 거절한다', () => {
+    expect(isAllowedLlmUrl('https://evil.example.com')).toBe(false)
+    expect(isAllowedLlmUrl('http://happy.trycloudflare.com')).toBe(false)
+    expect(isAllowedLlmUrl('https://trycloudflare.com.evil.com')).toBe(false)
+    expect(isAllowedLlmUrl('https://a.trycloudflare.com/steal')).toBe(false)
+    expect(isAllowedLlmUrl('https://x@a.trycloudflare.com')).toBe(false)
+    expect(isAllowedLlmUrl('javascript:alert(1)')).toBe(false)
+    expect(isAllowedLlmUrl('not a url')).toBe(false)
+  })
+  it('운영자 컴퓨터 주소인지 구분한다', () => {
+    expect(isRemoteLlm('https://happy-moa-test.trycloudflare.com')).toBe(true)
+    expect(isRemoteLlm('http://localhost:11434')).toBe(false)
+  })
+  it('운영자 LLM이 꺼져 있으면(530) 연결 오류로, 붐비면(429) 대기 안내로 바꾼다', async () => {
+    const remote = { baseUrl: 'https://happy-moa-test.trycloudflare.com', model: 'exaone3.5:2.4b' }
+    globalThis.fetch = (async () => new Response('', { status: 530 })) as unknown as typeof fetch
+    const down = await listModels(remote).catch((e) => e)
+    expect(down.kind).toBe('connect')
+    globalThis.fetch = (async () => new Response('', { status: 429 })) as unknown as typeof fetch
+    const err = await listModels(remote).catch((e) => e)
+    expect(err instanceof LlmError).toBe(true)
+    expect(err.kind).toBe('busy')
   })
 })

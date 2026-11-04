@@ -4,6 +4,7 @@ import { Icon } from '../lib/icons'
 import {
   LlmError,
   buildFacts,
+  isRemoteLlm,
   findUnsupportedNumbers,
   listModels,
   loadLlmSettings,
@@ -35,6 +36,7 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
   useEffect(() => () => abortRef.current?.abort(), [])
 
   const facts = buildFacts(me, item, rec)
+  const remote = isRemoteLlm(settings.baseUrl)
   const unsupported = status === 'done' ? findUnsupportedNumbers(text, facts) : []
 
   const run = async () => {
@@ -82,6 +84,11 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
           <p className="muted">
             점수는 위의 점수표에 다 나와 있어요. 이번엔 두 사람을 다 아는 친구처럼, Moa가 {item.profile.nickname}님을 소개해 줄게요.
           </p>
+          {remote && (
+            <p className="muted small">
+              버튼을 누르면 두 사람의 닉네임과 취향 키워드가 Moa 운영자 컴퓨터의 LLM으로 보내져요. 소개 글을 만드는 데만 쓰고 저장하지 않아요.
+            </p>
+          )}
           <button type="button" className="btn btn-primary" onClick={run}>
             <Icon name="sparkle" size={18} /> Moa에게 소개받기
           </button>
@@ -108,7 +115,7 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
           )}
           <div className="llm-foot">
             <span className="muted small">
-              Moa의 소개는 내 LLM({model})이 써요 · 궁합 점수는 Moa 점수표로 계산돼요
+              Moa의 소개는 {remote ? 'Moa 운영자 컴퓨터의' : '내'} LLM({model})이 써요 · 궁합 점수는 Moa 점수표로 계산돼요
             </span>
             <button type="button" className="btn btn-small btn-ghost" onClick={run}>
               <Icon name="refresh" size={16} /> 다른 말로 다시 듣기
@@ -122,7 +129,13 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
           <p>
             <Icon name="alert" size={16} /> {error.msg}
           </p>
-          {error.kind === 'connect' && (
+          {error.kind === 'connect' && remote && (
+            <ul className="small">
+              <li>Moa 운영자가 LLM을 켜 둔 동안에만 소개를 받을 수 있어요.</li>
+              <li>LLM을 다시 켤 때마다 링크가 바뀌어요. 운영자에게 최신 링크를 받아서 다시 들어와 주세요.</li>
+            </ul>
+          )}
+          {error.kind === 'connect' && !remote && (
             <ul className="small">
               <li>
                 내 컴퓨터에서 Ollama가 켜져 있는지 확인해 주세요. (주소: <code>{settings.baseUrl}</code>)
