@@ -24,15 +24,21 @@ export interface LlmSettings {
 }
 
 const SETTINGS_KEY = 'moa.v1.llm'
-/** 기본 모델: 수경님이 만든 로컬 LLM (Ollama의 qwen3:4b-instruct) */
-export const DEFAULT_MODEL = 'qwen3:4b-instruct'
+/**
+ * 기본 모델: 한국어·영어용 EXAONE 3.5 (2.4B, LG AI연구원).
+ * 설치돼 있지 않으면 예전 모델 qwen3:4b-instruct로, 그것도 없으면 설치된 첫 모델로 대신해요.
+ */
+export const DEFAULT_MODEL = 'exaone3.5:2.4b'
+export const FALLBACK_MODEL = 'qwen3:4b-instruct'
 export const DEFAULT_LLM: LlmSettings = { baseUrl: 'http://localhost:11434', model: DEFAULT_MODEL }
 
 export function loadLlmSettings(): LlmSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
     const saved = raw ? (JSON.parse(raw) as Partial<LlmSettings>) : {}
-    return { baseUrl: saved.baseUrl || DEFAULT_LLM.baseUrl, model: saved.model || DEFAULT_LLM.model }
+    // 예전 기본값(qwen3)이 저장돼 있으면 새 기본값(EXAONE)으로 바꿔요. 직접 고른 다른 모델은 그대로 둬요.
+    const model = !saved.model || saved.model === FALLBACK_MODEL ? DEFAULT_LLM.model : saved.model
+    return { baseUrl: saved.baseUrl || DEFAULT_LLM.baseUrl, model }
   } catch {
     return { ...DEFAULT_LLM }
   }
@@ -292,6 +298,17 @@ export class LlmError extends Error {
   }
 }
 
+/** 실제로 쓸 모델을 골라요: 설정한 모델 → (기본 모델이 없으면) qwen3 → 설치된 첫 모델 */
+export async function pickModel(s: LlmSettings): Promise<string> {
+  const wanted = s.model.trim()
+  if (wanted && wanted !== DEFAULT_MODEL) return wanted
+  const models = await listModels(s)
+  const has = (name: string) => models.find((m) => m === name || m === `${name}:latest` || m.startsWith(`${name}-`))
+  const found = has(DEFAULT_MODEL) ?? has(FALLBACK_MODEL) ?? models[0]
+  if (!found) throw new LlmError('Ollama에 설치된 모델이 없어요. Moa_LLM_켜기.bat을 다시 실행하면 모델을 받아 와요.', 'model')
+  return found
+}
+
 /** 설치된 모델 목록 (연결 확인용) */
 export async function listModels(s: LlmSettings): Promise<string[]> {
   let res: Response
@@ -315,12 +332,7 @@ export async function streamExplanation(
   onToken: (chunk: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {
-  let model = s.model.trim()
-  if (!model) {
-    const models = await listModels(s)
-    if (models.length === 0) throw new LlmError('Ollama에 설치된 모델이 없어요. 터미널에서 ollama pull 로 모델을 먼저 받아 주세요.', 'model')
-    model = models[0]
-  }
+  const model = await pickModel(s)
   let res: Response
   try {
     res = await fetch(`${trimSlash(s.baseUrl)}/api/chat`, {

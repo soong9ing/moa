@@ -173,7 +173,7 @@ function LlmSettingsPanel({ value, onSave }: { value: LlmSettings; onSave: (s: L
         <input id="llm-base" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://localhost:11434" />
       </label>
       <label className="field">
-        <span>모델 이름 (기본: qwen3:4b-instruct)</span>
+        <span>모델 이름 (기본: exaone3.5:2.4b)</span>
         {models && models.length > 0 ? (
           <select id="llm-model" value={model} onChange={(e) => setModel(e.target.value)}>
             {models.map((m) => (
@@ -183,7 +183,7 @@ function LlmSettingsPanel({ value, onSave }: { value: LlmSettings; onSave: (s: L
             ))}
           </select>
         ) : (
-          <input id="llm-model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="qwen3:4b-instruct" />
+          <input id="llm-model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="exaone3.5:2.4b" />
         )}
       </label>
       {check && <p className="small muted">{check}</p>}
@@ -191,7 +191,7 @@ function LlmSettingsPanel({ value, onSave }: { value: LlmSettings; onSave: (s: L
         <button type="button" className="btn btn-small btn-ghost" onClick={test}>
           연결 확인
         </button>
-        <button type="button" className="btn btn-small btn-primary" onClick={() => onSave({ baseUrl: baseUrl.trim() || 'http://localhost:11434', model: model.trim() || 'qwen3:4b-instruct' })}>
+        <button type="button" className="btn btn-small btn-primary" onClick={() => onSave({ baseUrl: baseUrl.trim() || 'http://localhost:11434', model: model.trim() || 'exaone3.5:2.4b' })}>
           저장
         </button>
       </div>

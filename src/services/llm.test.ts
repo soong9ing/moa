@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { MOCK_PROFILES } from '../data/mockProfiles'
 import { recommend } from '../matching'
 import { EMPTY_PREFERENCES, type Profile } from '../types'
-import { ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, systemPrompt, talkingPoints } from './llm'
+import { ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, pickModel, systemPrompt, talkingPoints } from './llm'
 
 const me: Profile = {
   id: 'user-me',
@@ -88,5 +88,22 @@ describe('qwen3 생각 과정 걸러 내기', () => {
   it('<think>가 없으면 그대로 둔다', () => {
     const f = new ThinkFilter()
     expect(['수경님과 ', '잘 맞아요 <3'].map((c) => f.push(c)).join('')).toBe('수경님과 잘 맞아요 <3')
+  })
+})
+
+describe('모델 고르기', () => {
+  const tags = (names: string[]) =>
+    (async () => new Response(JSON.stringify({ models: names.map((name) => ({ name })) }))) as unknown as typeof fetch
+  const base = { baseUrl: 'http://localhost:11434', model: 'exaone3.5:2.4b' }
+  it('EXAONE이 있으면 EXAONE을 쓴다', async () => {
+    globalThis.fetch = tags(['qwen3:4b-instruct', 'exaone3.5:2.4b'])
+    expect(await pickModel(base)).toBe('exaone3.5:2.4b')
+  })
+  it('EXAONE이 없으면 qwen3로 대신한다', async () => {
+    globalThis.fetch = tags(['qwen3:4b-instruct'])
+    expect(await pickModel(base)).toBe('qwen3:4b-instruct')
+  })
+  it('직접 고른 다른 모델은 그대로 쓴다', async () => {
+    expect(await pickModel({ ...base, model: 'llama3.2:3b' })).toBe('llama3.2:3b')
   })
 })
