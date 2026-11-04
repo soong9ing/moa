@@ -1,10 +1,10 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { Profile } from '../types'
 import { Avatar } from './visuals'
 
 /**
  * 첫 화면의 "취향 태양계".
- * 가운데 태양 = 현실적으로 받을 수 있는 최고 궁합 점수,
+ * 가운데 태양 = 현재 가입자 수 (live: 서버의 실제 가입자 수 / demo: 주위를 도는 프로필 수), 0부터 차오르는 숫자
  * 주위를 도는 행성 = Moa에 있는 모든 프로필(닉네임 첫 글자 아바타).
  *
  * 궤도 3개가 서로 다른 속도·방향으로 돌고, 행성은 늘 똑바로 서 있도록
@@ -41,7 +41,37 @@ function distribute<T>(items: T[]): T[][] {
   return rings
 }
 
-export function SolarSystem({ profiles, me, score }: { profiles: Profile[]; me?: Profile | null; score: number }) {
+/** 숫자가 0(또는 이전 값)에서 목표값까지 점점 차오르는 효과 */
+function CountUp({ value, duration = 1400 }: { value: number; duration?: number }) {
+  const [shown, setShown] = useState(0)
+  const from = useRef(0)
+
+  useEffect(() => {
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduce) {
+      from.current = value
+      setShown(value)
+      return
+    }
+    const start = performance.now()
+    const begin = from.current ?? 0
+    let raf = 0
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3) // 처음엔 빠르게, 끝에서 천천히
+      const v = Math.round(begin + (value - begin) * eased)
+      setShown(v)
+      if (t < 1) raf = requestAnimationFrame(tick)
+      else from.current = value
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [value, duration])
+
+  return <span className="count-up">{shown}</span>
+}
+
+export function SolarSystem({ profiles, me, count }: { profiles: Profile[]; me?: Profile | null; count?: number }) {
   const planets: { p: Pick<Profile, 'id' | 'nickname' | 'kind'>; mine: boolean }[] = [
     ...(me ? [{ p: me, mine: true }] : []),
     ...profiles.map((p) => ({ p, mine: false })),
@@ -61,7 +91,7 @@ export function SolarSystem({ profiles, me, score }: { profiles: Profile[]; me?:
             return (
               <span key={p.id} className={`planet${mine ? ' is-me' : ''}`} style={{ '--a': `${angle}deg` } as CSSProperties} title={p.nickname}>
                 <span className="planet-body">
-                  <Avatar profile={p} size={40} />
+                  <Avatar profile={p} size={40} letterOnly />
                 </span>
               </span>
             )
@@ -72,8 +102,10 @@ export function SolarSystem({ profiles, me, score }: { profiles: Profile[]; me?:
       <div className="sun">
         <div className="sun-glow" />
         <div className="sun-core">
-          <strong>{score}</strong>
-          <span>궁합 최대 점수</span>
+          <span>현재 가입자 수</span>
+          <strong>
+            <CountUp value={count ?? planets.length} />
+          </strong>
         </div>
       </div>
     </div>

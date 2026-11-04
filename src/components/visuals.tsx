@@ -3,6 +3,8 @@ import type { CategoryScore } from '../matching'
 import type { ReactNode } from 'react'
 import type { Profile } from '../types'
 import { Icon } from '../lib/icons'
+import { useState } from 'react'
+import { profilePhoto } from '../data/profilePhotos'
 
 /** 점수 항목별 고정 색 — 링·막대·범례가 같은 색을 써요 */
 export const CATEGORY_COLOR: Record<ScoreKey, string> = {
@@ -29,7 +31,30 @@ function hashHue(s: string): number {
  * 사진 대신 쓰는 그래픽 아바타.
  * 실제 인물 사진을 쓰지 않도록, 닉네임으로 색과 모양을 정해 그려요.
  */
-export function Avatar({ profile, size = 56 }: { profile: Pick<Profile, 'id' | 'nickname' | 'kind'>; size?: number }) {
+export function Avatar({
+  profile,
+  size = 56,
+  letterOnly = false,
+}: {
+  profile: Pick<Profile, 'id' | 'nickname' | 'kind'>
+  size?: number
+  /** true면 사진이 있어도 닉네임 첫 글자로 보여요 (홈 화면 태양계) */
+  letterOnly?: boolean
+}) {
+  const photo = letterOnly ? null : profilePhoto(profile.id)
+  const [broken, setBroken] = useState(false)
+  if (photo && !broken) {
+    return (
+      <span className="avatar has-photo" style={{ width: size, height: size }}>
+        <img src={photo} alt={`${profile.nickname} 프로필 사진`} width={size} height={size} loading="lazy" decoding="async" onError={() => setBroken(true)} />
+      </span>
+    )
+  }
+  return <LetterAvatar profile={profile} size={size} />
+}
+
+/** 사진이 없을 때 쓰는 닉네임 첫 글자 아바타 */
+function LetterAvatar({ profile, size }: { profile: Pick<Profile, 'id' | 'nickname' | 'kind'>; size: number }) {
   const hue = hashHue(profile.id)
   const hue2 = (hue + 40) % 360
   const initial = profile.nickname.trim().charAt(0) || '?'
@@ -156,6 +181,20 @@ export function EmptyState({
       <h3>{title}</h3>
       {children && <div className="empty-body">{children}</div>}
       {action && <div className="empty-action">{action}</div>}
+    </div>
+  )
+}
+
+/** 서버에서 내 정보를 불러오는 동안 보여 주는 화면 */
+export function LoadingState({ text = '내 프로필을 불러오는 중이에요' }: { text?: string }) {
+  return (
+    <div className="loading" role="status" aria-live="polite">
+      <span className="loading-dots" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </span>
+      <p>{text}</p>
     </div>
   )
 }

@@ -1,13 +1,17 @@
 import { CandidateCard } from '../components/CandidateCard'
+import { LlmExplain } from '../components/LlmExplain'
 import { ActiveFilterChips, ExcludedList, FILTER_LABEL, RELAX, ZeroCandidates } from '../components/FilterPanels'
-import { Avatar, CATEGORY_COLOR, Chip, Disclaimer, EmptyState, ScoreRing } from '../components/visuals'
+import { Avatar, CATEGORY_COLOR, Chip, Disclaimer, EmptyState, KindBadge, LoadingState, ScoreRing } from '../components/visuals'
+import { IS_LIVE } from '../services/backend'
 import { Icon } from '../lib/icons'
 import { Link, navigate } from '../lib/router'
 import { explainTop, type FilterKey } from '../matching'
 import { useApp } from '../store/AppStore'
 
 export function Feed() {
-  const { profile, recommendation: rec, updatePrefs, notify, likes, toggleLike, startChat } = useApp()
+  const { profile, recommendation: rec, updatePrefs, notify, likes, toggleLike, startChat, syncing } = useApp()
+
+  if (syncing) return <LoadingState />
 
   if (!profile || !rec) {
     return (
@@ -74,6 +78,7 @@ export function Feed() {
                 <div>
                   <h2>
                     {top.profile.nickname}
+                    {IS_LIVE && <KindBadge kind={top.profile.kind} />}
                   </h2>
                   <p className="muted">
                     {top.profile.age}세 · {top.profile.height}cm{top.profile.travel ? ` · ${top.profile.travel} 여행` : ''}
@@ -149,6 +154,8 @@ export function Feed() {
             </div>
             <Disclaimer compact />
           </section>
+
+          <LlmExplain me={profile} item={top} rec={rec} />
 
           {rest.length > 0 && (
             <section className="ranked">

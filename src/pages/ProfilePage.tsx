@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Avatar, KindBadge } from '../components/visuals'
+import { Avatar, KindBadge, LoadingState } from '../components/visuals'
 import {
   GENDERS,
   HOBBIES,
@@ -15,7 +15,8 @@ import {
 import { findMockProfile } from '../data/mockProfiles'
 import { Icon } from '../lib/icons'
 import { navigate } from '../lib/router'
-import { DEFAULT_SCORE_TABLE, getActiveFilters, ruleMax, type ScoreKey } from '../matching'
+import { IS_LIVE } from '../services/backend'
+import { DEFAULT_SCORE_TABLE, getActiveFilters, ruleMax, selectionLimit, type ScoreKey } from '../matching'
 import { useApp } from '../store/AppStore'
 import type { Preferences, Profile } from '../types'
 
@@ -101,8 +102,28 @@ function Row({ label, score, children, note }: { label: string; score?: ScoreKey
 
 const numOrNull = (s: string): number | null => (s.trim() === '' ? null : Number(s))
 
+/** 성격·취미·음악 선택 한도 — 점수표에서 계산해요 (성격 3, 취미 5, 음악 4) */
+const LIMIT = {
+  personality: selectionLimit(DEFAULT_SCORE_TABLE.personality),
+  hobbies: selectionLimit(DEFAULT_SCORE_TABLE.hobbies),
+  music: selectionLimit(DEFAULT_SCORE_TABLE.music),
+}
+
+function pickNote(key: keyof typeof LIMIT, count: number): string {
+  const rule = DEFAULT_SCORE_TABLE[key]
+  const per = rule.type === 'perItem' ? rule.perItem : 0
+  return `최대 ${LIMIT[key]}개 (${count}/${LIMIT[key]}) · 겹칠 때마다 ${per}점`
+}
+
+/** 서버에서 내 프로필을 다 불러온 뒤에 폼을 그려요 (빈 폼으로 서버 값을 덮어쓰지 않도록) */
 export function ProfilePage() {
-  const { user, profile, prefs: savedPrefs, saveProfile, savePrefs, notify, resetMyData, blocked, unblockProfile } = useApp()
+  const { syncing, profile } = useApp()
+  if (syncing) return <LoadingState />
+  return <ProfileForm key={profile ? 'saved' : 'new'} />
+}
+
+function ProfileForm() {
+  const { user, profile, prefs: savedPrefs, saveProfile, savePrefs, notify, resetMyData, deleteAccount, blocked, unblockProfile } = useApp()
   const [draft, setDraft] = useState<Draft>(() =>
     profile
       ? { ...profile }
@@ -125,6 +146,7 @@ export function ProfilePage() {
   const [prefs, setPrefs] = useState<Preferences>(savedPrefs)
   const [errors, setErrors] = useState<string[]>([])
   const [confirmReset, setConfirmReset] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }))
   const setP = <K extends keyof Preferences>(k: K, v: Preferences[K]) => setPrefs((p) => ({ ...p, [k]: v }))
@@ -135,6 +157,9 @@ export function ProfilePage() {
     if (!Number.isInteger(draft.age) || draft.age < MIN_AGE || draft.age > MAX_AGE) e.push(`나이는 ${MIN_AGE}~${MAX_AGE}세 사이로 입력해 주세요. (성인만 이용할 수 있어요)`)
     if (!Number.isFinite(draft.height) || draft.height < 140 || draft.height > 220) e.push('키는 140~220cm 사이로 입력해 주세요.')
     if (draft.bio.length > 200) e.push('자기소개는 200자 이내로 써 주세요.')
+    if (draft.personality.length > LIMIT.personality) e.push(`성격은 최대 ${LIMIT.personality}개까지 고를 수 있어요.`)
+    if (draft.hobbies.length > LIMIT.hobbies) e.push(`취미는 최대 ${LIMIT.hobbies}개까지 고를 수 있어요.`)
+    if (draft.music.length > LIMIT.music) e.push(`음악은 최대 ${LIMIT.music}개까지 고를 수 있어요.`)
     const bad = (n: number | null, lo: number, hi: number) => n != null && (!Number.isFinite(n) || n < lo || n > hi)
     if (bad(prefs.ageMin, MIN_AGE, MAX_AGE) || bad(prefs.ageMax, MIN_AGE, MAX_AGE)) e.push(`선호 나이는 ${MIN_AGE}~${MAX_AGE}세 사이로 입력해 주세요.`)
     if (prefs.ageMin != null && prefs.ageMax != null && prefs.ageMin > prefs.ageMax) e.push('선호 나이의 최소값이 최대값보다 커요.')
@@ -229,14 +254,14 @@ export function ProfilePage() {
           </Section>
 
           <Section title="나의 취향" hint="상대와 겹치는 만큼 점수가 올라가요.">
-            <Row label="성격" score="personality" note={`겹치는 성격 하나당 ${DEFAULT_SCORE_TABLE.personality.type === 'perItem' ? DEFAULT_SCORE_TABLE.personality.perItem : 0}점`}>
-              <MultiChips options={PERSONALITIES} value={draft.personality} onChange={(v) => set('personality', v)} />
+            <Row label="성격" score="personality" note={pickNote('personality', draft.personality.length)}>
+              <MultiChips options={PERSONALITIES} value={draft.personality} onChange={(v) => set('personality', v)} max={LIMIT.personality} />
             </Row>
-            <Row label="관심사 · 취미" score="hobbies">
-              <MultiChips options={HOBBIES} value={draft.hobbies} onChange={(v) => set('hobbies', v)} />
+            <Row label="관심사 · 취미" score="hobbies" note={pickNote('hobbies', draft.hobbies.length)}>
+              <MultiChips options={HOBBIES} value={draft.hobbies} onChange={(v) => set('hobbies', v)} max={LIMIT.hobbies} />
             </Row>
-            <Row label="음악" score="music">
-              <MultiChips options={MUSIC_GENRES} value={draft.music} onChange={(v) => set('music', v)} />
+            <Row label="음악" score="music" note={pickNote('music', draft.music.length)}>
+              <MultiChips options={MUSIC_GENRES} value={draft.music} onChange={(v) => set('music', v)} max={LIMIT.music} />
             </Row>
             <Row label="여행 스타일" score="travel">
               <SingleChips options={TRAVEL_STYLES} value={draft.travel} onChange={(v) => set('travel', v)} noneLabel="선택 안 함" />
@@ -399,22 +424,41 @@ export function ProfilePage() {
               </button>
             </div>
           </div>
-          {profile &&
+          {(IS_LIVE || profile) &&
             (confirmReset ? (
-              <div className="reset-confirm" role="alertdialog" aria-label="내 데이터 초기화 확인">
-                <p>이 기기에 저장된 내 프로필·좋아요·대화를 모두 지울까요?</p>
+              <div className="reset-confirm" role="alertdialog" aria-label={IS_LIVE ? '회원 탈퇴 확인' : '내 데이터 초기화 확인'}>
+                <p>
+                  {IS_LIVE
+                    ? '탈퇴하면 계정과 프로필이 서버에서 바로 지워지고 되돌릴 수 없어요. 탈퇴할까요?'
+                    : '이 기기에 저장된 내 프로필·좋아요·대화를 모두 지울까요?'}
+                </p>
                 <div>
                   <button
                     type="button"
                     className="btn btn-small btn-danger"
-                    onClick={() => {
+                    disabled={deleting}
+                    onClick={async () => {
+                      if (IS_LIVE) {
+                        setDeleting(true)
+                        try {
+                          await deleteAccount()
+                          notify('탈퇴를 마쳤어요. 그동안 고마웠어요.')
+                          navigate('/')
+                        } catch (err) {
+                          notify(err instanceof Error ? err.message : '탈퇴하지 못했어요.')
+                        } finally {
+                          setDeleting(false)
+                          setConfirmReset(false)
+                        }
+                        return
+                      }
                       resetMyData()
                       setConfirmReset(false)
                       notify('내 데이터를 초기화했어요')
                       navigate('/feed')
                     }}
                   >
-                    모두 지우기
+                    {IS_LIVE ? (deleting ? '지우는 중…' : '탈퇴하기') : '모두 지우기'}
                   </button>
                   <button type="button" className="btn btn-small btn-ghost" onClick={() => setConfirmReset(false)}>
                     취소
@@ -423,7 +467,7 @@ export function ProfilePage() {
               </div>
             ) : (
               <button type="button" className="text-btn danger small" onClick={() => setConfirmReset(true)}>
-                내 데이터 초기화
+                {IS_LIVE ? '회원 탈퇴' : '내 데이터 초기화'}
               </button>
             ))}
         </aside>

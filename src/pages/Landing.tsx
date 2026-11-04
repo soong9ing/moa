@@ -3,7 +3,7 @@ import { SolarSystem } from '../components/SolarSystem'
 import { MOCK_PROFILES } from '../data/mockProfiles'
 import { Icon, type IconName } from '../lib/icons'
 import { Link } from '../lib/router'
-import { maxAchievableScore } from '../matching'
+import { IS_LIVE } from '../services/backend'
 import { useApp } from '../store/AppStore'
 
 const HIGHLIGHTS: { icon: IconName; title: string; body: string }[] = [
@@ -13,10 +13,8 @@ const HIGHLIGHTS: { icon: IconName; title: string; body: string }[] = [
 ]
 
 export function Landing() {
-  const { user, profile, pool } = useApp()
+  const { user, profile, pool, memberCount } = useApp()
   const cta = user ? (profile ? '/feed' : '/profile') : '/login'
-  // 현실적으로 받을 수 있는 최고 점수 — 데이터에서 직접 계산해요 (지금은 67점)
-  const bestScore = maxAchievableScore(MOCK_PROFILES)
 
   return (
     <div className="landing">
@@ -55,7 +53,7 @@ export function Landing() {
         </div>
 
         <div className="hero-art">
-          <SolarSystem profiles={user ? pool : MOCK_PROFILES} me={profile} score={bestScore} />
+          <SolarSystem profiles={user ? pool : MOCK_PROFILES} me={profile} count={IS_LIVE ? (memberCount ?? 0) : undefined} />
         </div>
       </section>
 
@@ -73,7 +71,14 @@ export function Landing() {
 
       <footer className="landing-foot">
         <Logo small />
-        <p>Moa에서 만나는 상대 프로필은 모두 Moa가 만든 캐릭터이고, 대화는 캐릭터의 자동 답장으로 이어져요.</p>
+        <p>
+          Moa에서 추천하는 상대 프로필은 모두 Moa가 만든 캐릭터이고, 대화는 캐릭터의 자동 답장으로 이어져요.{' '}
+          {IS_LIVE && (
+            <>
+              가입자 수는 실제로 가입한 사람만 세요. <Link to="/privacy" className="inline-link">개인정보 처리 안내</Link>
+            </>
+          )}
+        </p>
       </footer>
     </div>
   )

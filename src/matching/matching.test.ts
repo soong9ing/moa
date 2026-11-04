@@ -9,6 +9,7 @@ import {
   groupByFilter,
   bestPossibleScore,
   maxAchievableScore,
+  selectionLimit,
   recommend,
   scoreCandidate,
   tableTotal,
@@ -56,37 +57,42 @@ describe('점수표', () => {
   it('항목별 최대점이 요구사항과 같다', () => {
     const t = DEFAULT_SCORE_TABLE
     expect(t.age).toEqual(expect.objectContaining({ type: 'flat', points: 15 }))
-    expect(t.personality).toEqual(expect.objectContaining({ type: 'perItem', perItem: 2, max: 18 }))
-    expect(t.hobbies).toEqual(expect.objectContaining({ type: 'perItem', perItem: 3, max: 30 }))
-    expect(t.music).toEqual(expect.objectContaining({ type: 'perItem', perItem: 2, max: 16 }))
+    expect(t.personality).toEqual(expect.objectContaining({ type: 'perItem', perItem: 6, max: 18 }))
+    expect(t.hobbies).toEqual(expect.objectContaining({ type: 'perItem', perItem: 6, max: 30 }))
+    expect(t.music).toEqual(expect.objectContaining({ type: 'perItem', perItem: 4, max: 16 }))
     expect(t.travel).toEqual(expect.objectContaining({ type: 'flat', points: 10 }))
     expect(t.religion).toEqual(expect.objectContaining({ type: 'flat', points: 6 }))
     expect(t.style).toEqual(expect.objectContaining({ type: 'flat', points: 5 }))
   })
-  it('선택지 개수 × 항목당 점수 = 최대점 (성격 9, 취미 10, 음악 8)', () => {
-    expect(PERSONALITIES.length * 2).toBe(18)
-    expect(HOBBIES.length * 3).toBe(30)
-    expect(MUSIC_GENRES.length * 2).toBe(16)
+  it('선택 한도 × 항목당 점수 = 최대점 (성격 3, 취미 5, 음악 4)', () => {
+    const t = DEFAULT_SCORE_TABLE
+    expect(selectionLimit(t.personality)).toBe(3)
+    expect(selectionLimit(t.hobbies)).toBe(5)
+    expect(selectionLimit(t.music)).toBe(4)
+    // 선택 한도는 실제 선택지 개수보다 많을 수 없어요
+    expect(selectionLimit(t.personality)).toBeLessThanOrEqual(PERSONALITIES.length)
+    expect(selectionLimit(t.hobbies)).toBeLessThanOrEqual(HOBBIES.length)
+    expect(selectionLimit(t.music)).toBeLessThanOrEqual(MUSIC_GENRES.length)
   })
 })
 
 // ---------- 점수 계산 ----------
 describe('점수 계산', () => {
-  it('해질녘(mock-01)과의 점수를 항목별로 정확히 계산한다 = 53점', () => {
+  it('해질녘(mock-01)과의 점수를 항목별로 정확히 계산한다 = 74점', () => {
     const target = MOCK_PROFILES.find((p) => p.id === 'mock-01')!
     const p = prefs({ ageMin: 25, ageMax: 30, religion: '무교', styleTags: ['미니멀'] })
     const r = scoreCandidate(me, p, target)
 
     expect(cat(r, 'age').earned).toBe(15) // 27세, 25~30
-    expect(cat(r, 'personality').earned).toBe(4) // 다정함, 감성적
+    expect(cat(r, 'personality').earned).toBe(12) // 다정함, 감성적 × 6
     expect(cat(r, 'personality').matched).toEqual(['다정함', '감성적'])
-    expect(cat(r, 'hobbies').earned).toBe(9) // 사진, 산책, 독서
+    expect(cat(r, 'hobbies').earned).toBe(18) // 사진, 산책, 독서 × 6
     expect(cat(r, 'hobbies').matched).toEqual(['사진', '산책', '독서'])
-    expect(cat(r, 'music').earned).toBe(4) // 발라드, 재즈
+    expect(cat(r, 'music').earned).toBe(8) // 발라드, 재즈 × 4
     expect(cat(r, 'travel').earned).toBe(10) // 계획형
     expect(cat(r, 'religion').earned).toBe(6) // 무교
     expect(cat(r, 'style').earned).toBe(5) // 미니멀
-    expect(r.total).toBe(53)
+    expect(r.total).toBe(74)
     expect(r.total).toBe(r.categories.reduce((s, c) => s + c.earned, 0))
     expect(r.maxPossible).toBe(100)
   })
@@ -217,24 +223,24 @@ describe('필수 조건 필터', () => {
 describe('추천 순위', () => {
   it('점수 높은 순으로 정렬하고 1위를 고른다', () => {
     const pool = [
-      person({ id: 'r1', nickname: '하나', hobbies: ['사진'] }), // 3
-      person({ id: 'r2', nickname: '둘', hobbies: ['사진', '산책', '독서'], travel: '계획형' }), // 9 + 10 = 19
-      person({ id: 'r3', nickname: '셋', hobbies: ['사진', '산책'] }), // 6
+      person({ id: 'r1', nickname: '하나', hobbies: ['사진'] }), // 6
+      person({ id: 'r2', nickname: '둘', hobbies: ['사진', '산책', '독서'], travel: '계획형' }), // 18 + 10 = 28
+      person({ id: 'r3', nickname: '셋', hobbies: ['사진', '산책'] }), // 12
     ]
     const rec = recommend(me, prefs(), pool)
     expect(rec.ranked.map((r) => r.profile.id)).toEqual(['r2', 'r3', 'r1'])
-    expect(rec.ranked.map((r) => r.score.total)).toEqual([19, 6, 3])
+    expect(rec.ranked.map((r) => r.score.total)).toEqual([28, 12, 6])
     expect(rec.ranked.map((r) => r.rank)).toEqual([1, 2, 3])
     expect(rec.top?.profile.id).toBe('r2')
     const why = explainTop(rec)
-    expect(why[0]).toContain('19점')
-    expect(why.join(' ')).toContain('2위 셋(6점)보다 13점 앞서요')
+    expect(why[0]).toContain('28점')
+    expect(why.join(' ')).toContain('2위 셋(12점)보다 16점 앞서요')
   })
 
   it('동점이면 공통 취미가 많은 후보가 앞선다', () => {
     const pool = [
       person({ id: 't1', nickname: '가', travel: '계획형' }), // 10, 취미 0
-      person({ id: 't2', nickname: '나', hobbies: ['사진', '산책'], music: ['발라드', '재즈'] }), // 6 + 4 = 10, 취미 2
+      person({ id: 't2', nickname: '나', hobbies: ['사진'], music: ['발라드'] }), // 6 + 4 = 10, 취미 1
     ]
     const rec = recommend(me, prefs(), pool)
     expect(rec.ranked.map((r) => r.score.total)).toEqual([10, 10])
@@ -300,11 +306,18 @@ describe('현실적인 최고 점수', () => {
       expect(r.total).toBe(bestPossibleScore(p))
     }
   })
-  it('후보 전체 최고점은 100점을 넘지 않고, 빈 후보면 0점', () => {
-    const m = maxAchievableScore(MOCK_PROFILES)
-    expect(m).toBeGreaterThan(0)
-    expect(m).toBeLessThanOrEqual(100)
+  it('모든 캐릭터가 취향이 완벽히 맞으면 정확히 100점까지 나올 수 있다', () => {
+    for (const p of MOCK_PROFILES) expect(bestPossibleScore(p)).toBe(100)
+    expect(maxAchievableScore(MOCK_PROFILES)).toBe(100)
     expect(maxAchievableScore([])).toBe(0)
+  })
+  it('캐릭터의 성격·취미·음악 개수는 선택 한도와 같다', () => {
+    const t = DEFAULT_SCORE_TABLE
+    for (const p of MOCK_PROFILES) {
+      expect(p.personality.length).toBe(selectionLimit(t.personality))
+      expect(p.hobbies.length).toBe(selectionLimit(t.hobbies))
+      expect(p.music.length).toBe(selectionLimit(t.music))
+    }
   })
 })
 

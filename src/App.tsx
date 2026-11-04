@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Logo, Shell, Toasts } from './components/Shell'
 import { matchPath, navigate, usePath } from './lib/router'
 import { Chats } from './pages/Chats'
@@ -8,6 +8,7 @@ import { Landing } from './pages/Landing'
 import { Likes } from './pages/Likes'
 import { Login } from './pages/Login'
 import { MatchDetail } from './pages/MatchDetail'
+import { Privacy } from './pages/Privacy'
 import { ProfilePage } from './pages/ProfilePage'
 import { AppStoreProvider, useApp } from './store/AppStore'
 
@@ -19,13 +20,17 @@ function Routes() {
   const isPrivate = PRIVATE.some((p) => path === p || path.startsWith(p + '/'))
 
   // 로그인 보호 + 로그인 상태에서 로그인 화면 접근 시 이동
+  // 방금 로그인한 경우에는 로그인 화면이 직접 이동시켜요. 이미 로그인한 채로 /login에 오면 추천으로 보내요.
+  const wasLoggedIn = useRef(user != null)
   useEffect(() => {
     if (isPrivate && !user) navigate('/login', { replace: true })
-    else if (path === '/login' && user) navigate(profile ? '/feed' : '/profile', { replace: true })
+    else if (path === '/login' && user && wasLoggedIn.current) navigate(profile ? '/feed' : '/profile', { replace: true })
+    wasLoggedIn.current = user != null
   }, [isPrivate, user, profile, path])
 
   if (path === '/' ) return <Landing />
   if (path === '/login') return <Login />
+  if (path === '/privacy') return <Privacy />
   if (path === '/guide' && !user) return <PublicGuide />
   if (!user) return null
 

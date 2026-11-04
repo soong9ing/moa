@@ -1,6 +1,7 @@
 import { FILTER_LABEL, RELAX } from '../components/FilterPanels'
+import { LlmExplain } from '../components/LlmExplain'
 import { ScoreBreakdown } from '../components/ScoreBreakdown'
-import { Avatar, Chip, Disclaimer, EmptyState, KindBadge, ScoreRing } from '../components/visuals'
+import { Avatar, Chip, Disclaimer, EmptyState, KindBadge, LoadingState, ScoreRing } from '../components/visuals'
 import { findMockProfile } from '../data/mockProfiles'
 import { Icon } from '../lib/icons'
 import { Link, navigate } from '../lib/router'
@@ -13,7 +14,7 @@ function compare(mine: readonly string[], theirs: readonly string[]) {
 }
 
 export function MatchDetail({ id }: { id: string }) {
-  const { profile: me, recommendation: rec, likes, blocked, toggleLike, startChat, notify, updatePrefs, unblockProfile } = useApp()
+  const { profile: me, recommendation: rec, likes, blocked, toggleLike, startChat, notify, updatePrefs, unblockProfile, syncing } = useApp()
   const p = findMockProfile(id)
 
   if (!p) {
@@ -23,6 +24,7 @@ export function MatchDetail({ id }: { id: string }) {
       </div>
     )
   }
+  if (syncing) return <LoadingState />
   if (!me || !rec) {
     return (
       <div className="page">
@@ -175,6 +177,8 @@ export function MatchDetail({ id }: { id: string }) {
               </p>
             </section>
           )}
+
+          <LlmExplain me={me} item={ranked} rec={rec} />
         </>
       ) : null}
 

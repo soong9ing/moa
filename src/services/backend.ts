@@ -1,20 +1,19 @@
+import { FORCE_DEMO } from './supabaseConfig'
+
 /**
- * 백엔드(인증·DB) 연결 상태.
+ * 백엔드 연결 상태.
  *
- * 지금 버전에는 실제 인증 서버나 데이터베이스가 연결돼 있지 않아요.
- * 그래서 앱 전체가 "데모 모드"로 동작하고, 화면에도 그렇게 표시해요.
- *  - 계정·프로필·좋아요·대화는 이 브라우저의 localStorage에만 저장돼요.
- *  - 비밀번호를 받지 않아요. (가짜 로그인을 진짜처럼 보이게 하지 않기 위해서예요)
- *  - 가상 프로필과의 대화는 미리 준비된 문장으로 자동 응답하는 데모예요.
+ * - 'live' : Supabase에 연결돼요 (VITE_MOA_DEMO=false 로 빌드할 때). 회원가입·로그인은 진짜 계정(이메일+비밀번호)이고,
+ *            내 프로필은 서버에 저장돼 다른 기기에서도 이어져요. 가입자 수는 모든 방문자가 같은 숫자를 봐요.
+ * - 'demo' : 서버 없이 이 브라우저 안에서만 동작해요. ← 지금 기본값 (가상 앱)
  *
- * 실제 서비스로 바꾸려면 src/services/auth.ts 의 AuthService / ChatService
- * 인터페이스를 Supabase·Firebase 같은 서비스로 구현한 뒤 여기 mode를 바꾸면 돼요.
- * (README의 "실제 로그인·채팅 연결하기" 참고)
+ * 두 모드 모두 추천 상대는 Moa가 만든 캐릭터 40명이고, 대화는 캐릭터의 자동 답장이에요.
+ * 좋아요·대화·차단 기록은 아직 이 브라우저에만 저장돼요 (2단계에서 서버로 옮길 예정).
  */
 export type BackendMode = 'demo' | 'live'
 
-export const BACKEND: { mode: BackendMode; label: string; detail: string } = {
-  mode: 'demo',
-  label: '데모 모드',
-  detail: '실제 서버에 연결되지 않았어요. 모든 데이터는 이 브라우저에만 저장되고, 다른 사용자에게 전달되지 않아요.',
+export const BACKEND: { mode: BackendMode } = {
+  mode: FORCE_DEMO ? 'demo' : 'live',
 }
+
+export const IS_LIVE = BACKEND.mode === 'live'

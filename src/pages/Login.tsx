@@ -3,6 +3,7 @@ import { Logo } from '../components/Shell'
 import { Icon } from '../lib/icons'
 import { Link, navigate } from '../lib/router'
 import { isValidEmail } from '../services/auth'
+import { IS_LIVE } from '../services/backend'
 import { useApp } from '../store/AppStore'
 
 export function Login() {
@@ -10,6 +11,10 @@ export function Login() {
   const [mode, setMode] = useState<'login' | 'signup'>('signup')
   const [email, setEmail] = useState('')
   const [nickname, setNickname] = useState('')
+  const [password, setPassword] = useState('')
+  const [adult, setAdult] = useState(false)
+  const [agree, setAgree] = useState(false)
+  const [sentTo, setSentTo] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -18,14 +23,21 @@ export function Login() {
     setError(null)
     if (!isValidEmail(email)) return setError('이메일 형식을 확인해 주세요.')
     if (mode === 'signup' && !nickname.trim()) return setError('닉네임을 입력해 주세요.')
+    if (IS_LIVE && password.length < 8) return setError('비밀번호는 8자 이상으로 입력해 주세요.')
+    if (mode === 'signup' && !adult) return setError('Moa는 만 19세 이상만 가입할 수 있어요.')
+    if (mode === 'signup' && IS_LIVE && !agree) return setError('개인정보 처리 안내에 동의해 주세요.')
     setBusy(true)
     try {
       if (mode === 'signup') {
-        await signUp(email, nickname)
+        const r = await signUp(email, nickname, password)
+        if (r === 'confirmEmail') {
+          setSentTo(email.trim())
+          return
+        }
         notify('가입을 마쳤어요. 이제 취향을 모아 볼까요?')
         navigate('/profile')
       } else {
-        await logIn(email)
+        await logIn(email, password)
         notify('다시 오신 걸 환영해요')
         navigate('/feed')
       }
@@ -69,16 +81,58 @@ export function Login() {
           </button>
         </div>
 
+        {sentTo ? (
+          <div className="notice notice-mail" role="status">
+            <Icon name="check" size={18} />
+            <div>
+              <strong>인증 메일을 보냈어요</strong>
+              <p>
+                <b>{sentTo}</b> 메일함에서 인증 링크를 누르면 가입이 끝나요. 메일이 안 보이면 스팸함도 확인해 주세요.
+              </p>
+              <button type="button" className="text-btn" onClick={() => { setSentTo(null); setMode('login') }}>
+                로그인 화면으로
+              </button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={submit} className="form" noValidate>
           <label className="field">
             <span>이메일</span>
             <input type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
+          {IS_LIVE && (
+            <label className="field">
+              <span>비밀번호</span>
+              <input
+                type="password"
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                placeholder="8자 이상"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+          )}
           {mode === 'signup' && (
             <label className="field">
               <span>닉네임</span>
               <input maxLength={12} placeholder="Moa에서 쓸 이름" value={nickname} onChange={(e) => setNickname(e.target.value)} />
             </label>
+          )}
+          {mode === 'signup' && (
+            <div className="consents">
+              <label className="check">
+                <input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} />
+                <span>만 19세 이상이에요</span>
+              </label>
+              {IS_LIVE && (
+                <label className="check">
+                  <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+                  <span>
+                    <Link to="/privacy" className="inline-link">개인정보 처리 안내</Link>를 읽었고 동의해요
+                  </span>
+                </label>
+              )}
+            </div>
           )}
           {error && (
             <p className="form-error" role="alert">
@@ -89,12 +143,17 @@ export function Login() {
             {busy ? '잠시만요…' : mode === 'signup' ? '가입하고 시작하기' : '로그인'}
           </button>
         </form>
+        )}
         <p className="auth-note">
           <Icon name="info" size={14} />
-          <span>비밀번호 없이 이메일로 바로 시작해요. 계정과 기록은 이 브라우저에 저장되고, Moa에서 만나는 상대는 모두 Moa가 만든 캐릭터예요.</span>
+          <span>
+            {IS_LIVE
+              ? '내 프로필은 Moa 서버에 안전하게 저장되고, 다른 가입자에게는 공개되지 않아요. 지금 추천해 드리는 상대는 모두 Moa가 만든 캐릭터예요.'
+              : '비밀번호 없이 이메일로 바로 시작해요. 계정과 기록은 이 브라우저에 저장되고, Moa에서 만나는 상대는 모두 Moa가 만든 캐릭터예요.'}
+          </span>
         </p>
         <p className="auth-foot">
-          {mode === 'signup' ? '이미 이 기기에서 가입했나요? ' : '처음이신가요? '}
+          {mode === 'signup' ? (IS_LIVE ? '이미 가입했나요? ' : '이미 이 기기에서 가입했나요? ') : '처음이신가요? '}
           <button type="button" className="text-btn" onClick={() => { setMode(mode === 'signup' ? 'login' : 'signup'); setError(null) }}>
             {mode === 'signup' ? '로그인' : '회원가입'}
           </button>
