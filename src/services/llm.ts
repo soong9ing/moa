@@ -406,7 +406,8 @@ export async function streamExplanation(
   try {
     res = await fetch(`${trimSlash(s.baseUrl)}/api/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // text/plain으로 보내면 브라우저 사전 확인(OPTIONS)이 필요 없어서 아이폰 Safari에서도 잘 돼요. Ollama는 형식과 상관없이 JSON으로 읽어요.
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
       signal,
       body: JSON.stringify({
         model,

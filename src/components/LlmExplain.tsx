@@ -53,14 +53,25 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
       for (let attempt = 0; attempt < 2; attempt++) {
         let full = ''
         setText('')
-        used = await streamExplanation(settings, facts, (t) => { full += t; setText(full) }, ctrl.signal)
+        try {
+          used = await streamExplanation(settings, facts, (t) => { full += t; setText(full) }, ctrl.signal)
+        } catch (e) {
+          // 인터넷이 잠깐 끊긴 경우(특히 휴대폰)는 조용히 한 번 더 해 봐요
+          const blip = !(e instanceof LlmError) || e.kind === 'connect'
+          if (ctrl.signal.aborted || !blip || attempt > 0) throw e
+          await new Promise((r) => setTimeout(r, 1500))
+          if (ctrl.signal.aborted) throw e
+          setText('')
+          used = await streamExplanation(settings, facts, (t) => { full += t; setText(full) }, ctrl.signal)
+        }
         if (!speaksAsParticipant(full)) break
       }
       setModel(used)
       setStatus('done')
     } catch (e) {
       if (ctrl.signal.aborted) return
-      setError({ msg: e instanceof Error ? e.message : '설명을 받지 못했어요.', kind: e instanceof LlmError ? e.kind : 'http' })
+      // 글을 받는 도중 끊긴 경우(TypeError 등)도 연결 문제로 안내해요
+      setError(e instanceof LlmError ? { msg: e.message, kind: e.kind } : { msg: '연결이 중간에 끊겼어요.', kind: 'connect' })
       setStatus('error')
     }
   }
