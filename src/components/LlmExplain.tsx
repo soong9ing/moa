@@ -10,6 +10,7 @@ import {
   loadLlmSettings,
   saveLlmSettings,
   speaksAsParticipant,
+  inventsDifference,
   streamExplanation,
   type LlmSettings,
 } from '../services/llm'
@@ -64,7 +65,7 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
           setText('')
           used = await streamExplanation(settings, facts, (t) => { full += t; setText(full) }, ctrl.signal)
         }
-        if (!speaksAsParticipant(full)) break
+        if (!speaksAsParticipant(full) && !inventsDifference(full, facts)) break
       }
       setModel(used)
       setStatus('done')

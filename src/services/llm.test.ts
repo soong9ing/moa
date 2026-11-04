@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { MOCK_PROFILES } from '../data/mockProfiles'
 import { recommend } from '../matching'
 import { EMPTY_PREFERENCES, type Profile } from '../types'
-import { LlmError, SentenceLimit, ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, isAllowedLlmUrl, isRemoteLlm, listModels, pickModel, speaksAsParticipant, systemPrompt, talkingPoints } from './llm'
+import { LlmError, SentenceLimit, inventsDifference, ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, isAllowedLlmUrl, isRemoteLlm, listModels, pickModel, speaksAsParticipant, systemPrompt, talkingPoints } from './llm'
 
 const me: Profile = {
   id: 'user-me',
@@ -163,5 +163,19 @@ describe('3문장에서 멈추기', () => {
     const l = new SentenceLimit(3)
     const out = ['두 사람은 ', '잘 맞아! 기대', '돼.'].map((c) => l.push(c)).join('') + l.flush()
     expect(out).toBe('두 사람은 잘 맞아! 기대돼.')
+  })
+})
+
+describe('다른 점 지어내기 검사', () => {
+  it('다른 점이 없는 짝에서 "다른 매력"을 말하면 찾아낸다', () => {
+    const f = buildFacts(me, top, rec)
+    expect(talkingPoints(f).some((p) => p.includes('다른 점'))).toBe(false)
+    expect(systemPrompt(f)).toContain('다른 점이 없어')
+    expect(inventsDifference('특히 해질녘의 차분함과 수경의 열정적인 면모가 어우러져 서로 다른 매력을 더해줄 거야~', f)).toBe(true)
+    expect(inventsDifference('둘 다 다정해서 서로 잘 챙겨 줄 것 같아 벌써 기대돼~', f)).toBe(false)
+  })
+  it('다른 점이 있는 짝이면 "다른 매력"은 괜찮다', () => {
+    const f = buildFacts(me, rec.ranked[1], rec)
+    if (talkingPoints(f).some((p) => p.includes('다른 점'))) expect(inventsDifference('서로 다른 매력을 발견할 거야', f)).toBe(false)
   })
 })
