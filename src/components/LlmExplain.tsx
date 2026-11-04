@@ -80,17 +80,17 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
       {status === 'idle' && (
         <div className="llm-idle">
           <p className="muted">
-            점수는 위의 점수표에 다 나와 있어요. 이번엔 두 사람을 다 아는 친구(겹지인)처럼, 내 LLM이 {item.profile.nickname}님을 소개해 줄 거예요.
+            점수는 위의 점수표에 다 나와 있어요. 이번엔 두 사람을 다 아는 친구처럼, Moa가 {item.profile.nickname}님을 소개해 줄게요.
           </p>
           <button type="button" className="btn btn-primary" onClick={run}>
-            <Icon name="sparkle" size={18} /> 겹지인에게 소개받기
+            <Icon name="sparkle" size={18} /> Moa에게 소개받기
           </button>
         </div>
       )}
 
       {(status === 'loading' || status === 'done') && (
         <div className="llm-body" aria-live="polite">
-          {text ? <p className="llm-text">{text}{status === 'loading' && <span className="llm-caret" />}</p> : <p className="muted">겹지인이 두 사람 이야기를 떠올리는 중…</p>}
+          {text ? <p className="llm-text">{text}{status === 'loading' && <span className="llm-caret" />}</p> : <p className="muted">Moa가 두 사람 이야기를 떠올리는 중…</p>}
           {status === 'loading' && (
             <button type="button" className="btn btn-small btn-ghost" onClick={() => { abortRef.current?.abort(); setStatus(text ? 'done' : 'idle') }}>
               멈추기
@@ -108,7 +108,7 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
           )}
           <div className="llm-foot">
             <span className="muted small">
-              {model}이 쓴 소개예요 · 궁합 점수는 Moa 점수표로 계산돼요
+              Moa의 소개는 내 LLM({model})이 써요 · 궁합 점수는 Moa 점수표로 계산돼요
             </span>
             <button type="button" className="btn btn-small btn-ghost" onClick={run}>
               <Icon name="refresh" size={16} /> 다른 말로 다시 듣기
