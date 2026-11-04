@@ -9,6 +9,7 @@ import {
   listModels,
   loadLlmSettings,
   saveLlmSettings,
+  speaksAsParticipant,
   streamExplanation,
   type LlmSettings,
 } from '../services/llm'
@@ -47,7 +48,14 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
     setText('')
     setError(null)
     try {
-      const used = await streamExplanation(settings, facts, (t) => setText((prev) => prev + t), ctrl.signal)
+      // 작은 모델이 가끔 당사자처럼("우리 둘", "너의") 말해요. 그러면 한 번 더 써 달라고 해요.
+      let used = ''
+      for (let attempt = 0; attempt < 2; attempt++) {
+        let full = ''
+        setText('')
+        used = await streamExplanation(settings, facts, (t) => { full += t; setText(full) }, ctrl.signal)
+        if (!speaksAsParticipant(full)) break
+      }
       setModel(used)
       setStatus('done')
     } catch (e) {

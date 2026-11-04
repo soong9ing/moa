@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { MOCK_PROFILES } from '../data/mockProfiles'
 import { recommend } from '../matching'
 import { EMPTY_PREFERENCES, type Profile } from '../types'
-import { LlmError, ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, isAllowedLlmUrl, isRemoteLlm, listModels, pickModel, systemPrompt, talkingPoints } from './llm'
+import { LlmError, ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, isAllowedLlmUrl, isRemoteLlm, listModels, pickModel, speaksAsParticipant, systemPrompt, talkingPoints } from './llm'
 
 const me: Profile = {
   id: 'user-me',
@@ -54,6 +54,7 @@ describe('LLM 겹지인 소개용 정보 정리', () => {
     expect(user).toContain('[말할 거리]')
     expect(user).not.toContain('100점')
     expect(systemPrompt(f)).toContain('수경과 해질녘을 둘 다 아는 친구')
+    expect(systemPrompt(f)).toContain('"두 사람은"으로 시작')
   })
 
   it('다른 점이 있으면 3번째 말할 거리로 하나만 넣는다', () => {
@@ -136,5 +137,16 @@ describe('공유 링크로 운영자 LLM 쓰기', () => {
     const err = await listModels(remote).catch((e) => e)
     expect(err instanceof LlmError).toBe(true)
     expect(err.kind).toBe('busy')
+  })
+})
+
+describe('제3자 말투 검사', () => {
+  it('당사자처럼 말하면 찾아낸다', () => {
+    expect(speaksAsParticipant('코드몽키랑 운동하고 맛있는 거 먹으면서 영화도 보자! 우리 둘 다 계획적으로 만나니까 좋아.')).toBe(true)
+    expect(speaksAsParticipant('하지만 너의 이성적인 면모가 나에게 신선한 재미를 더해줄 것 같아.')).toBe(true)
+  })
+  it('두 사람을 이름으로 부르면 통과한다', () => {
+    expect(speaksAsParticipant('두 사람은 둘 다 계획적인 성향이라 약속 잡을 때부터 척척 맞을 것 같아! 수경은 차분하고 코드몽키는 이성적인 편이라, 서로의 새로운 매력을 발견하는 재미도 있을 거야~')).toBe(false)
+    expect(speaksAsParticipant('두 사람은 운동하고 맛있는 거 먹으러 다니면 하루가 금방 갈 것 같아. 나들이도 잘 맞겠는데?')).toBe(false)
   })
 })
