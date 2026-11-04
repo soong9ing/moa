@@ -59,7 +59,7 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
     <section className="card llm">
       <header className="llm-head">
         <h3>
-          <Icon name="sparkle" size={18} /> 겹지인 LLM의 한마디
+          <Icon name="sparkle" size={18} /> Moa의 한마디
         </h3>
         <button type="button" className="icon-btn" aria-label="LLM 연결 설정" aria-expanded={showSettings} onClick={() => setShowSettings((v) => !v)}>
           <Icon name="sliders" size={18} />
