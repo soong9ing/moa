@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { MOCK_PROFILES } from '../data/mockProfiles'
 import { recommend } from '../matching'
 import { EMPTY_PREFERENCES, type Profile } from '../types'
-import { ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, systemPrompt } from './llm'
+import { ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, systemPrompt, talkingPoints } from './llm'
 
 const me: Profile = {
   id: 'user-me',
@@ -43,14 +43,23 @@ describe('LLM 겹지인 소개용 정보 정리', () => {
     expect(f2.different.some((x) => x.startsWith('성격:'))).toBe(true)
   })
 
-  it('프롬프트에는 점수 숫자 대신 두 사람의 취향과 겹지인 역할이 들어간다', () => {
+  it('LLM에게는 코드가 고른 말할 거리 최대 3개만 준다 (점수 숫자 없음)', () => {
     const f = buildFacts(me, top, rec)
+    const pts = talkingPoints(f)
+    expect(pts.length).toBeGreaterThan(0)
+    expect(pts.length).toBeLessThanOrEqual(3)
+    expect(pts[0]).toContain('1. 공통 취미: 사진, 산책, 독서, 영화, 그림')
+    expect(pts[0]).toContain('데이트 장면')
     const user = buildUserPrompt(f)
-    expect(user).toContain('겹치는 점:')
-    expect(user).toContain('해질녘 (소개해 줄 사람)')
+    expect(user).toContain('[말할 거리]')
     expect(user).not.toContain('100점')
-    expect(systemPrompt(f)).toContain('겹지인')
-    expect(systemPrompt(f)).toContain('해질녘을 소개해 주는 중')
+    expect(systemPrompt(f)).toContain('수경과 해질녘을 둘 다 아는 친구')
+  })
+
+  it('다른 점이 있으면 3번째 말할 거리로 하나만 넣는다', () => {
+    const f = buildFacts(me, rec.ranked[1], rec)
+    const pts = talkingPoints(f)
+    expect(pts.filter((p) => p.includes('다른 점')).length).toBeLessThanOrEqual(1)
   })
 
   it('선호 나이를 설정하지 않으면 나이를 겹치는 점으로 말하지 않는다', () => {

@@ -56,23 +56,95 @@ const trimSlash = (u: string) => u.trim().replace(/\/+$/, '')
  */
 export function systemPrompt(f: ExplainFacts): string {
   return [
-    `너는 소개팅 앱 Moa에서 두 사람을 이어 주는 '겹지인'이야. ${f.me}의 친구이면서 ${f.them}의 친구이기도 해.`,
-    `지금 ${f.me}에게 ${josa(f.them, '을', '를')} 소개해 주는 중이야. 친한 친구에게 말하듯 반말로, 설레고 다정하게 말해.`,
+    `너는 ${josa(f.me, '과', '와')} ${josa(f.them, '을', '를')} 둘 다 아는 친구야. 지금 ${f.me}에게 ${josa(f.them, '을', '를')} 소개팅 상대로 소개해 주고 있어.`,
     '',
-    '이렇게 말해:',
-    '- [두 사람 정보]의 "겹치는 점"을 골라, 그게 데이트나 연애에서 어떤 장면이 될지 구체적으로 상상해서 말해. (예: 둘 다 계획형 → 약속 잡을 때부터 척척)',
-    '- "다른 점"이 있으면 하나만 골라 긍정적으로 짚어 줘. (예: 서로의 새로운 매력을 발견하는 재미)',
-    '- 3~4문장, 문단 하나. 느낌표나 물결(~)을 자연스럽게 써도 좋아.',
+    '규칙:',
+    '- 딱 3문장. 반말. 친구에게 카톡 보내듯 자연스럽게.',
+    '- 1문장: [말할 거리] 1번을 [데이트 장면]과 엮어서 말해.',
+    '- 2문장: [말할 거리] 2번을 [데이트 장면]과 엮어서 말해.',
+    '- 3문장: [말할 거리] 3번(다른 점)을 "서로 새로운 매력을 알아 가는 재미" 같은 느낌으로 가볍게 말해. 3번이 없으면 기대된다는 말로 마무리해.',
+    '- [말할 거리]에 없는 내용은 절대 말하지 마. 숫자, 점수, 순위도 말하지 마.',
+    '- 같은 말을 반복하지 마. 목록·제목·따옴표 없이 문장만 써.',
     '',
-    '절대 하지 마:',
-    '- 점수, 순위, 몇 점, 몇 위 같은 숫자 이야기 (점수표는 화면에 이미 있어)',
-    '- [두 사람 정보]에 없는 사실 지어내기 (직업, 외모, 사는 곳, 과거 이야기 등)',
-    '- "무조건 잘될 거야"처럼 관계를 장담하기',
-    '- 목록, 제목, 따옴표로 감싸기, 영어 섞기',
-    '',
-    '말투 예시 (내용은 따라 하지 말고 말투만 참고해):',
-    '"둘 다 계획적인 성향이라 데이트 약속 잡을 때부터 척척 잘 맞을 것 같아! 드라마, 영화, 산책, 요리까지 공통 취미도 많아서 함께할 일이 끊이지 않겠는데? 다만 성격 유형과 음악 취향은 조금 다르니까, 서로의 새로운 매력을 발견하는 재미도 있을 거야~"',
+    '예시)',
+    '[말할 거리]',
+    '1. 둘 다 계획형 여행 → 데이트 장면: 약속 잡을 때부터 척척 맞음',
+    '2. 공통 취미: 드라마, 영화, 산책, 요리 → 데이트 장면: 같이 영화 보고 동네 산책하기',
+    '3. 다른 점: 성격과 음악 취향이 조금 다름',
+    '[소개]',
+    '둘 다 계획적인 성향이라 데이트 약속 잡을 때부터 척척 잘 맞을 것 같아! 드라마, 영화, 산책, 요리까지 공통 취미도 많아서 같이 영화 보고 산책하다 보면 할 얘기가 끊이지 않겠는데? 다만 성격이랑 음악 취향은 조금 다르니까, 서로의 새로운 매력을 발견하는 재미도 있을 거야~',
   ].join('\n')
+}
+
+/** 취향별로 떠올리기 쉬운 데이트 장면 (작은 모델이 억지로 지어내지 않도록 미리 줘요) */
+const HOBBY_SCENE: Record<string, string> = {
+  운동: '같이 운동하고 맛있는 거 먹기',
+  드라마: '드라마 같이 정주행하며 수다 떨기',
+  독서: '북카페에서 각자 책 읽다가 얘기 나누기',
+  게임: '같이 게임하면서 티격태격하기',
+  사진: '서로 사진 찍어 주며 걷기',
+  그림: '전시회 보러 가기',
+  요리: '같이 장 보고 요리해 먹기',
+  산책: '동네 산책하며 이야기하기',
+  영화: '영화 보고 나와서 감상 나누기',
+  캠핑: '캠핑 가서 불멍하기',
+}
+const PERSONALITY_SCENE: Record<string, string> = {
+  외향적: '처음 만나도 어색할 틈이 없음',
+  내향적: '조용한 곳에서 편하게 오래 대화함',
+  다정함: '서로 잘 챙겨 줌',
+  차분함: '함께 있으면 편안함',
+  유머러스: '대화하면 웃음이 끊이지 않음',
+  솔직함: '오해 없이 마음을 잘 표현함',
+  감성적: '같은 장면에서 같이 감동받음',
+  이성적: '고민을 차분하게 같이 풀어 감',
+  열정적: '하고 싶은 걸 같이 신나게 해 봄',
+}
+/** 성격 단어를 꾸미는 말로 (차분함 → 차분한) */
+const PERS_ADJ: Record<string, string> = {
+  외향적: '외향적인', 내향적: '내향적인', 다정함: '다정한', 차분함: '차분한', 유머러스: '유머러스한',
+  솔직함: '솔직한', 감성적: '감성적인', 이성적: '이성적인', 열정적: '열정적인',
+}
+const TRAVEL_SCENE: Record<string, string> = {
+  계획형: '데이트 약속 잡을 때부터 척척 맞음',
+  즉흥형: '갑자기 떠나는 여행도 둘 다 신나 함',
+}
+
+/**
+ * LLM이 말할 거리를 코드가 미리 골라요 (최대 3개: 겹치는 점 2개 + 다른 점 1개).
+ * 작은 모델은 고를 게 많으면 두서없어지기 때문에, 순서와 장면까지 정해서 줘요.
+ */
+export function talkingPoints(f: ExplainFacts): string[] {
+  const sameHobby = f.mine.hobbies.filter((h) => f.theirs.hobbies.includes(h))
+  const sameMusic = f.mine.music.filter((m) => f.theirs.music.includes(m))
+  const samePers = f.mine.personality.filter((x) => f.theirs.personality.includes(x))
+  const candidates: string[] = []
+  if (sameHobby.length) {
+    const scenes = sameHobby.slice(0, 2).map((h) => HOBBY_SCENE[h] ?? `${h} 같이 하기`)
+    candidates.push(`공통 취미: ${sameHobby.join(', ')} → 데이트 장면: ${scenes.join(', ')}`)
+  }
+  if (f.mine.travel && f.theirs.travel === f.mine.travel) {
+    candidates.push(`둘 다 ${f.mine.travel} 여행 → 데이트 장면: ${TRAVEL_SCENE[f.mine.travel] ?? '여행 스타일이 잘 맞음'}`)
+  }
+  if (samePers.length) {
+    candidates.push(`둘 다 ${samePers.join('·')} 성격 → 데이트 장면: ${PERSONALITY_SCENE[samePers[0]] ?? '대화가 잘 통함'}`)
+  }
+  if (sameMusic.length) {
+    candidates.push(`같이 좋아하는 음악: ${sameMusic.join(', ')} → 데이트 장면: 드라이브하며 같은 노래 듣기`)
+  }
+  const points = candidates.slice(0, 2)
+  if (points.length === 0) points.push('겹치는 취향은 많지 않음 → 데이트 장면: 서로 몰랐던 세계를 소개해 주기')
+
+  // 다른 점 하나
+  const diffPers = f.theirs.personality.filter((x) => !f.mine.personality.includes(x))
+  const diffMusic = f.theirs.music.filter((x) => !f.mine.music.includes(x))
+  const diffTravel = f.mine.travel && f.theirs.travel && f.mine.travel !== f.theirs.travel
+  let diff: string | null = null
+  if (diffTravel) diff = `다른 점: ${josa(f.me, '은', '는')} ${f.mine.travel}, ${josa(f.them, '은', '는')} ${f.theirs.travel} 여행 스타일`
+  else if (diffPers.length) diff = `다른 점: ${josa(f.them, '은', '는')} ${PERS_ADJ[diffPers[0]] ?? diffPers[0]} 면이 있음`
+  else if (diffMusic.length) diff = `다른 점: ${josa(f.them, '은', '는')} ${diffMusic.join('·')}도 좋아함`
+  if (diff) points.push(diff)
+  return points.map((p, i) => `${i + 1}. ${p}`)
 }
 
 export interface PersonSide {
@@ -175,22 +247,11 @@ export function buildFacts(me: Profile, item: RankedCandidate, rec: Recommendati
 }
 
 export function buildUserPrompt(f: ExplainFacts): string {
-  const list = (xs: string[]) => (xs.length ? xs.join(', ') : '없음')
   return [
-    '[두 사람 정보]',
-    `${f.me} (내 친구)`,
-    `- 성격: ${list(f.mine.personality)} / 취미: ${list(f.mine.hobbies)} / 음악: ${list(f.mine.music)} / 여행: ${f.mine.travel ?? '모름'}`,
-    `${f.them} (소개해 줄 사람)`,
-    `- 한 줄 소개: ${f.theirs.tagline || '없음'}`,
-    `- 자기소개: ${f.theirs.bio || '없음'}`,
-    `- 성격: ${list(f.theirs.personality)} / 취미: ${list(f.theirs.hobbies)} / 음악: ${list(f.theirs.music)} / 여행: ${f.theirs.travel ?? '모름'} / 스타일: ${list(f.theirs.styles)}`,
-    '',
-    '겹치는 점:',
-    ...(f.same.length ? f.same.map((x) => `- ${x}`) : ['- 크게 겹치는 건 없음']),
-    '다른 점:',
-    ...(f.different.length ? f.different.map((x) => `- ${x}`) : ['- 크게 다른 건 없음']),
-    '',
-    `위 정보만 가지고, 겹지인으로서 ${f.me}에게 ${josa(f.them, '을', '를')} 소개해 줘.`,
+    `${f.them}의 한 줄 소개: ${f.theirs.tagline || '없음'}`,
+    '[말할 거리]',
+    ...talkingPoints(f),
+    '[소개]',
   ].join('\n')
 }
 
@@ -269,8 +330,8 @@ export async function streamExplanation(
       body: JSON.stringify({
         model,
         stream: true,
-        // 겹지인 말투는 조금 더 자유롭게(0.7), 3~4문장이면 충분해서 길이는 짧게 제한해요
-        options: { temperature: 0.7, num_predict: 280 },
+        // 3문장이면 충분해서 짧게 제한하고, 같은 말 반복을 줄여요
+        options: { temperature: 0.5, num_predict: 220, repeat_penalty: 1.15 },
         messages: [
           { role: 'system', content: systemPrompt(facts) },
           { role: 'user', content: buildUserPrompt(facts) },
