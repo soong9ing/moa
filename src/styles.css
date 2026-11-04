@@ -747,3 +747,16 @@ input, textarea { font: inherit; color: inherit; }
 .llm-settings select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line-2); background: #fff; font: inherit; }
 .row-actions { justify-content: flex-start; }
 .empty .row-actions { justify-content: center; }
+
+/* 프로필 화면 오른쪽 요약 카드: 스크롤해도 화면에 붙어 따라와요 (넓은 화면에서만) */
+@media (min-width: 1101px) {
+  .profile-aside {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .profile-aside .sticky { position: static; }
+}
