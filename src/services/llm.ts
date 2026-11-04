@@ -118,7 +118,7 @@ export function systemPrompt(f: ExplainFacts): string {
     '- "우리", "나", "너", "너의", "나에게", "같이 하자", "보자" 같은 말은 절대 쓰지 마. 두 사람에게 직접 말을 걸지도 마.',
     '- 1문장: [말할 거리] 1번을 [데이트 장면]과 엮어서 말해.',
     '- 2문장: [말할 거리] 2번을 [데이트 장면]과 엮어서 말해.',
-    '- 3문장: [말할 거리] 3번(다른 점)을 "서로 새로운 매력을 알아 가는 재미" 같은 느낌으로 가볍게 말해. 3번이 없으면 기대된다는 말로 마무리해.',
+    '- 3문장: [말할 거리] 3번이 "다른 점"이면 "서로 새로운 매력을 알아 가는 재미" 같은 느낌으로 가볍게 말해. 3번이 겹치는 점이면 그 장면을 말하고 기대된다는 말로 마무리해. 3번이 없으면 기대된다는 말로 마무리해.',
     '- [말할 거리]에 없는 내용은 절대 말하지 마. 숫자, 점수, 순위도 말하지 마.',
     '- 같은 말을 반복하지 마. 목록·제목·따옴표 없이 문장만 써.',
     '',
@@ -209,6 +209,8 @@ export function talkingPoints(f: ExplainFacts): string[] {
   else if (diffPers.length) diff = `다른 점: ${josa(f.them, '은', '는')} ${PERS_ADJ[diffPers[0]] ?? diffPers[0]} 면이 있음`
   else if (diffMusic.length) diff = `다른 점: ${josa(f.them, '은', '는')} ${diffMusic.join('·')}도 좋아함`
   if (diff) points.push(diff)
+  // 다른 점이 없을 만큼 잘 맞으면, 겹치는 점을 하나 더 말해요
+  else if (candidates[2]) points.push(candidates[2])
   return points.map((p, i) => `${i + 1}. ${p}`)
 }
 

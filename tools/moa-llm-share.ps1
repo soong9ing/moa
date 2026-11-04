@@ -82,27 +82,60 @@ if (-not (Test-Path $cf)) {
 
 # 예전에 남아 있던 연결은 정리해요
 Get-Process -Name 'cloudflared' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $cf } | Stop-Process -Force -ErrorAction SilentlyContinue
-$log = Join-Path $moaDir 'tunnel.log'
-$logOut = Join-Path $moaDir 'tunnel.out.log'
-Remove-Item $log, $logOut -ErrorAction SilentlyContinue
-$tunnel = Start-Process -FilePath $cf -PassThru -NoNewWindow `
-  -ArgumentList @('tunnel', '--no-autoupdate', '--url', "http://127.0.0.1:$Port", '--http-host-header', "localhost:$Port") `
-  -RedirectStandardError $log -RedirectStandardOutput $logOut
+$script:tunnelRun = 0
 
-$publicUrl = $null
-for ($i = 0; $i -lt 40 -and -not $publicUrl; $i++) {
-  Start-Sleep -Seconds 1
-  if ($tunnel.HasExited) { break }
-  foreach ($f in @($log, $logOut)) {
-    if (Test-Path $f) {
-      $text = Get-Content -Raw -ErrorAction SilentlyContinue $f
-      if ($text -match 'https://[a-z0-9-]+\.trycloudflare\.com') { $publicUrl = $Matches[0] }
+function Start-Tunnel {
+  $script:tunnelRun++
+  $script:log = Join-Path $moaDir ("tunnel-{0}.log" -f $script:tunnelRun)
+  $out = Join-Path $moaDir ("tunnel-{0}.out.log" -f $script:tunnelRun)
+  Remove-Item $script:log, $out -ErrorAction SilentlyContinue
+  # http2(TCP)로 연결해요. 학교·공용 와이파이처럼 UDP(QUIC)를 막는 곳에서도 잘 돼요.
+  $p = Start-Process -FilePath $cf -PassThru -NoNewWindow `
+    -ArgumentList @('tunnel', '--no-autoupdate', '--protocol', 'http2', '--url', "http://127.0.0.1:$Port", '--http-host-header', "localhost:$Port") `
+    -RedirectStandardError $script:log -RedirectStandardOutput $out
+  $url = $null
+  for ($i = 0; $i -lt 40 -and -not $url; $i++) {
+    Start-Sleep -Seconds 1
+    if ($p.HasExited) { break }
+    foreach ($f in @($script:log, $out)) {
+      if (Test-Path $f) {
+        $text = Get-Content -Raw -ErrorAction SilentlyContinue $f
+        if ($text -match 'https://[a-z0-9-]+\.trycloudflare\.com') { $url = $Matches[0] }
+      }
     }
   }
+  if (-not $url -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+  return @{ Process = $p; Url = $url }
 }
+
+function Show-Link($link, [switch]$Changed) {
+  Say ''
+  Say '=================================================================' 'Green'
+  if ($Changed) {
+    Say ' 연결이 끊겨서 새 링크를 만들었어요! 아래 새 링크를 다시 보내 주세요.' 'Magenta'
+  } else {
+    Say ' 아래 링크를 다른 사람에게 보내 주세요. (클립보드에도 복사해 뒀어요)' 'Green'
+  }
+  Say ''
+  Say " $link" 'Yellow'
+  Say ''
+  Say ' 발표용 시연 링크 (로그인 없이 바로 추천 화면):' 'Cyan'
+  Say (" $link" -replace '\?llm=', '?demo=1&llm=') 'Cyan'
+  Say ''
+  Say ' - 이 창을 켜 둔 동안에만 Moa의 한마디가 동작해요.' 'Green'
+  Say ' - 이 창이 켜져 있는 동안은 컴퓨터가 절전 모드로 들어가지 않아요. (노트북 덮개는 열어 두세요)' 'Green'
+  Say ' - 인터넷이 오래 끊기면 링크가 바뀌어요. 그러면 이 창에 새 링크가 나와요.' 'Green'
+  Say ' - 들어온 요청은 소개 글 쓰기만 통과시키고, 모델 삭제/설치 같은 건 막아요.' 'Green'
+  Say '=================================================================' 'Green'
+  Say ''
+  try { Set-Clipboard -Value $link } catch {}
+}
+
+$t = Start-Tunnel
+$tunnel = $t.Process
+$publicUrl = $t.Url
 if (-not $publicUrl) {
-  if (-not $tunnel.HasExited) { Stop-Process -Id $tunnel.Id -Force -ErrorAction SilentlyContinue }
-  Fail "임시 주소를 만들지 못했어요. 잠시 뒤 다시 실행해 주세요. (기록: $log)"
+  Fail "임시 주소를 만들지 못했어요. 잠시 뒤 다시 실행해 주세요. (기록: $script:log)"
 }
 $shareLink = $SiteUrl + '?llm=' + [Uri]::EscapeDataString($publicUrl)
 
@@ -116,17 +149,13 @@ try { $listener.Start() } catch {
 
 Say ''
 Say '[4/4] 준비됐어요!' 'Green'
-Say '=================================================================' 'Green'
-Say ' 아래 링크를 다른 사람에게 보내 주세요. (클립보드에도 복사해 뒀어요)' 'Green'
-Say ''
-Say " $shareLink" 'Yellow'
-Say ''
-Say ' - 이 창을 켜 둔 동안에만 Moa의 한마디가 동작해요.' 'Green'
-Say ' - 창을 닫았다가 다시 켜면 링크가 바뀌어요. 새 링크를 다시 보내 주세요.' 'Green'
-Say ' - 들어온 요청은 소개 글 쓰기만 통과시키고, 모델 삭제/설치 같은 건 막아요.' 'Green'
-Say '=================================================================' 'Green'
-Say ''
-try { Set-Clipboard -Value $shareLink } catch {}
+Show-Link $shareLink
+
+# 이 창이 켜져 있는 동안 컴퓨터가 잠들지 않게 해요 (창을 닫으면 원래대로 돌아가요)
+try {
+  Add-Type -Namespace Moa -Name Power -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint esFlags);'
+  [void][Moa.Power]::SetThreadExecutionState([uint32]'0x80000001')  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+} catch {}
 
 # ---------- 문지기 ----------
 $hits = New-Object 'System.Collections.Generic.Queue[datetime]'
@@ -262,11 +291,33 @@ function Handle($ctx) {
   return 404
 }
 
+$script:lastCheck = Get-Date
 try {
   while ($listener.IsListening) {
     $task = $listener.GetContextAsync()
     while (-not $task.Wait(500)) {
-      if ($tunnel.HasExited) { throw '임시 주소 연결(cloudflared)이 끊겼어요. 창을 닫고 다시 실행해 주세요.' }
+      # 20초마다 임시 주소가 살아 있는지 확인하고, 죽었으면 새로 만들어요
+      if (((Get-Date) - $script:lastCheck).TotalSeconds -ge 20) {
+        $script:lastCheck = Get-Date
+        $dead = $tunnel.HasExited
+        if (-not $dead -and (Test-Path $script:log)) {
+          $tail = Get-Content -Tail 3 -ErrorAction SilentlyContinue $script:log
+          if (($tail -join "`n") -match 'Tunnel not found') { $dead = $true }
+        }
+        if ($dead) {
+          Say ("{0}  임시 주소가 끊겼어요. 새로 만드는 중이에요..." -f (Get-Date -Format 'HH:mm:ss')) 'Magenta'
+          if (-not $tunnel.HasExited) { Stop-Process -Id $tunnel.Id -Force -ErrorAction SilentlyContinue }
+          $t = Start-Tunnel
+          $tunnel = $t.Process
+          if ($t.Url) {
+            $publicUrl = $t.Url
+            $shareLink = $SiteUrl + '?llm=' + [Uri]::EscapeDataString($publicUrl)
+            Show-Link $shareLink -Changed
+          } else {
+            Say '  아직 인터넷이 안 되는 것 같아요. 20초 뒤에 다시 해 볼게요.' 'DarkYellow'
+          }
+        }
+      }
     }
     $ctx = $task.Result
     $label = "$($ctx.Request.HttpMethod) $($ctx.Request.Url.AbsolutePath)"
@@ -284,5 +335,6 @@ try {
 } finally {
   try { $listener.Stop() } catch {}
   if ($tunnel -and -not $tunnel.HasExited) { Stop-Process -Id $tunnel.Id -Force -ErrorAction SilentlyContinue }
+  try { [void][Moa.Power]::SetThreadExecutionState([uint32]'0x80000000') } catch {}
   Say '공유를 껐어요.' 'Yellow'
 }

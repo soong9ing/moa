@@ -4,6 +4,7 @@ import { MOCK_PROFILES } from '../data/mockProfiles'
 import { Icon, type IconName } from '../lib/icons'
 import { Link } from '../lib/router'
 import { IS_LIVE } from '../services/backend'
+import { startDemo } from '../services/demoAccount'
 import { useApp } from '../store/AppStore'
 
 const HIGHLIGHTS: { icon: IconName; title: string; body: string }[] = [
@@ -50,6 +51,11 @@ export function Landing() {
               점수는 어떻게 매겨요?
             </Link>
           </div>
+          {!IS_LIVE && (
+            <button type="button" className="demo-link" onClick={startDemo}>
+              로그인 없이 시연 계정으로 둘러보기 →
+            </button>
+          )}
         </div>
 
         <div className="hero-art">
