@@ -50,16 +50,37 @@ const trimSlash = (u: string) => u.trim().replace(/\/+$/, '')
 
 // ---------- 프롬프트 (순수 함수 — 테스트 가능) ----------
 
-export const SYSTEM_PROMPT = [
-  '너는 취향 기반 소개팅 앱 "Moa"의 궁합 설명 도우미야.',
-  '사용자에게 왜 이 상대가 추천됐는지, 아래 [계산 결과]만 근거로 설명해.',
-  '규칙:',
-  '1. [계산 결과]에 있는 점수와 항목만 말해. 점수를 새로 계산하거나 바꾸거나 반올림하지 마.',
-  '2. [계산 결과]에 없는 성격·외모·직업·사실을 지어내지 마.',
-  '3. 0점이거나 미사용인 항목은 "겹치지 않았다"고 솔직하게 말해도 돼.',
-  '4. 관계가 잘될 거라고 보장하거나 예언하지 마. 취향 비교 결과라는 점을 지켜.',
-  '5. 한국어 존댓말(해요체)로, 4~6문장, 따뜻하고 담백하게. 목록이나 제목 없이 문단 하나로.',
-].join('\n')
+/**
+ * 말투: 두 사람을 다 아는 '겹지인'이 내 친구에게 상대를 소개해 주는 느낌.
+ * 점수표는 화면에 이미 있으니, LLM은 숫자 대신 "겹치는 취향이 데이트에서 어떤 장면이 될지"를 상상해서 말해요.
+ */
+export function systemPrompt(f: ExplainFacts): string {
+  return [
+    `너는 소개팅 앱 Moa에서 두 사람을 이어 주는 '겹지인'이야. ${f.me}의 친구이면서 ${f.them}의 친구이기도 해.`,
+    `지금 ${f.me}에게 ${josa(f.them, '을', '를')} 소개해 주는 중이야. 친한 친구에게 말하듯 반말로, 설레고 다정하게 말해.`,
+    '',
+    '이렇게 말해:',
+    '- [두 사람 정보]의 "겹치는 점"을 골라, 그게 데이트나 연애에서 어떤 장면이 될지 구체적으로 상상해서 말해. (예: 둘 다 계획형 → 약속 잡을 때부터 척척)',
+    '- "다른 점"이 있으면 하나만 골라 긍정적으로 짚어 줘. (예: 서로의 새로운 매력을 발견하는 재미)',
+    '- 3~4문장, 문단 하나. 느낌표나 물결(~)을 자연스럽게 써도 좋아.',
+    '',
+    '절대 하지 마:',
+    '- 점수, 순위, 몇 점, 몇 위 같은 숫자 이야기 (점수표는 화면에 이미 있어)',
+    '- [두 사람 정보]에 없는 사실 지어내기 (직업, 외모, 사는 곳, 과거 이야기 등)',
+    '- "무조건 잘될 거야"처럼 관계를 장담하기',
+    '- 목록, 제목, 따옴표로 감싸기, 영어 섞기',
+    '',
+    '말투 예시 (내용은 따라 하지 말고 말투만 참고해):',
+    '"둘 다 계획적인 성향이라 데이트 약속 잡을 때부터 척척 잘 맞을 것 같아! 드라마, 영화, 산책, 요리까지 공통 취미도 많아서 함께할 일이 끊이지 않겠는데? 다만 성격 유형과 음악 취향은 조금 다르니까, 서로의 새로운 매력을 발견하는 재미도 있을 거야~"',
+  ].join('\n')
+}
+
+export interface PersonSide {
+  personality: string[]
+  hobbies: string[]
+  music: string[]
+  travel: string | null
+}
 
 export interface ExplainFacts {
   me: string
@@ -70,11 +91,21 @@ export interface ExplainFacts {
   maxPossible: number
   candidates: number
   categories: { label: string; earned: number; max: number; used: boolean; matched: string[]; detail: string }[]
-  /** 1위와 2위 비교처럼, 알고리즘이 이미 만든 근거 문장 */
+  /** 1위와 2위 비교처럼, 알고리즘이 이미 만든 근거 문장 (숫자 검사용) */
   ruleBased: string[]
+  mine: PersonSide
+  theirs: PersonSide & { age: number; tagline: string; bio: string; styles: string[] }
+  /** 겹치는 점 (사람이 읽는 문장) */
+  same: string[]
+  /** 다른 점 (사람이 읽는 문장) */
+  different: string[]
 }
 
+const only = (a: readonly string[], b: readonly string[]) => a.filter((x) => !b.includes(x))
+const both = (a: readonly string[], b: readonly string[]) => a.filter((x) => b.includes(x))
+
 export function buildFacts(me: Profile, item: RankedCandidate, rec: Recommendation): ExplainFacts {
+  const p = item.profile
   const top = rec.top
   const ruleBased: string[] = []
   if (item.rank === 1) {
@@ -92,44 +123,75 @@ export function buildFacts(me: Profile, item: RankedCandidate, rec: Recommendati
   } else if (top) {
     ruleBased.push(`1위 ${top.profile.nickname}(${top.score.total}점)보다 ${top.score.total - item.score.total}점 낮은 ${item.rank}위예요.`)
   }
+
+  // 겹치는 점 / 다른 점 — 점수 계산과 같은 데이터에서 뽑아요
+  const cat = (key: string) => item.score.categories.find((c) => c.key === key)
+  const same: string[] = []
+  const different: string[] = []
+  const sharedHobby = both(me.hobbies, p.hobbies)
+  const sharedMusic = both(me.music, p.music)
+  const sharedPers = both(me.personality, p.personality)
+  if (sharedHobby.length) same.push(`공통 취미: ${sharedHobby.join(', ')}`)
+  if (sharedMusic.length) same.push(`같이 좋아하는 음악: ${sharedMusic.join(', ')}`)
+  if (sharedPers.length) same.push(`둘 다 이런 성격: ${sharedPers.join(', ')}`)
+  if (me.travel && p.travel === me.travel) same.push(`여행 스타일: 둘 다 ${me.travel}`)
+  if (cat('religion')?.earned) same.push(`종교: ${josa(me.nickname, '이', '가')} 바라는 종교(${p.religion})와 같음`)
+  if (cat('style')?.earned) same.push(`스타일: ${josa(me.nickname, '이', '가')} 좋아하는 스타일(${cat('style')!.matched.join(', ')})과 같음`)
+  if (cat('age')?.earned) same.push(`나이: ${josa(me.nickname, '이', '가')} 바라는 나이대에 맞음`)
+
+  const myPersOnly = only(me.personality, p.personality)
+  const theirPersOnly = only(p.personality, me.personality)
+  if (theirPersOnly.length && myPersOnly.length) different.push(`성격: ${josa(me.nickname, '은', '는')} ${myPersOnly.join('·')}, ${josa(p.nickname, '은', '는')} ${theirPersOnly.join('·')}`)
+  const theirMusicOnly = only(p.music, me.music)
+  if (theirMusicOnly.length && me.music.length) different.push(`음악: ${josa(p.nickname, '은', '는')} ${theirMusicOnly.join('·')}도 좋아함`)
+  const theirHobbyOnly = only(p.hobbies, me.hobbies)
+  if (theirHobbyOnly.length) different.push(`취미: ${p.nickname}만의 취미는 ${theirHobbyOnly.join('·')}`)
+  if (me.travel && p.travel && p.travel !== me.travel) different.push(`여행: ${josa(me.nickname, '은', '는')} ${me.travel}, ${josa(p.nickname, '은', '는')} ${p.travel}`)
+
   return {
     me: me.nickname,
-    them: item.profile.nickname,
+    them: p.nickname,
     rank: item.rank,
     total: item.score.total,
     tableMax: item.score.tableMax,
     maxPossible: item.score.maxPossible,
     candidates: rec.ranked.length,
-    categories: item.score.categories.map((c) => ({
-      label: c.label,
-      earned: c.earned,
-      max: c.max,
-      used: c.used,
-      matched: c.matched,
-      detail: c.detail,
-    })),
+    categories: item.score.categories.map((c) => ({ label: c.label, earned: c.earned, max: c.max, used: c.used, matched: c.matched, detail: c.detail })),
     ruleBased,
+    mine: { personality: me.personality, hobbies: me.hobbies, music: me.music, travel: me.travel },
+    theirs: {
+      personality: p.personality,
+      hobbies: p.hobbies,
+      music: p.music,
+      travel: p.travel,
+      age: p.age,
+      tagline: p.tagline ?? '',
+      bio: p.bio,
+      styles: p.styles,
+    },
+    same,
+    different,
   }
 }
 
 export function buildUserPrompt(f: ExplainFacts): string {
-  const lines = [
-    '[계산 결과]',
-    `- 사용자: ${f.me}`,
-    `- 추천 상대: ${f.them}`,
-    `- 순위: 필수 조건을 통과한 ${f.candidates}명 중 ${f.rank}위`,
-    `- 총점: ${f.total}점 (점수표 전체 ${f.tableMax}점, 사용자가 설정한 항목 기준 최대 ${f.maxPossible}점)`,
-    '- 항목별 점수:',
-    ...f.categories.map((c) =>
-      c.used
-        ? `  · ${c.label}: ${c.earned}/${c.max}점${c.matched.length ? ` (겹친 것: ${c.matched.join(', ')})` : ''} — ${c.detail}`
-        : `  · ${c.label}: 미사용 (사용자가 설정하지 않음)`,
-    ),
-    ...(f.ruleBased.length ? ['- 순위 근거:', ...f.ruleBased.map((r) => `  · ${r}`)] : []),
+  const list = (xs: string[]) => (xs.length ? xs.join(', ') : '없음')
+  return [
+    '[두 사람 정보]',
+    `${f.me} (내 친구)`,
+    `- 성격: ${list(f.mine.personality)} / 취미: ${list(f.mine.hobbies)} / 음악: ${list(f.mine.music)} / 여행: ${f.mine.travel ?? '모름'}`,
+    `${f.them} (소개해 줄 사람)`,
+    `- 한 줄 소개: ${f.theirs.tagline || '없음'}`,
+    `- 자기소개: ${f.theirs.bio || '없음'}`,
+    `- 성격: ${list(f.theirs.personality)} / 취미: ${list(f.theirs.hobbies)} / 음악: ${list(f.theirs.music)} / 여행: ${f.theirs.travel ?? '모름'} / 스타일: ${list(f.theirs.styles)}`,
     '',
-    `위 계산 결과만 근거로, ${f.me}님에게 ${f.them}님이 왜 이 순위로 추천됐는지 설명해 줘.`,
-  ]
-  return lines.join('\n')
+    '겹치는 점:',
+    ...(f.same.length ? f.same.map((x) => `- ${x}`) : ['- 크게 겹치는 건 없음']),
+    '다른 점:',
+    ...(f.different.length ? f.different.map((x) => `- ${x}`) : ['- 크게 다른 건 없음']),
+    '',
+    `위 정보만 가지고, 겹지인으로서 ${f.me}에게 ${josa(f.them, '을', '를')} 소개해 줘.`,
+  ].join('\n')
 }
 
 /** 설명에 나와도 되는 숫자 (계산 결과에 실제로 있는 값) */
@@ -207,10 +269,10 @@ export async function streamExplanation(
       body: JSON.stringify({
         model,
         stream: true,
-        // 4B 모델이 빨리 끝내도록 답 길이를 제한해요 (4~6문장이면 충분)
-        options: { temperature: 0.3, num_predict: 360 },
+        // 겹지인 말투는 조금 더 자유롭게(0.7), 3~4문장이면 충분해서 길이는 짧게 제한해요
+        options: { temperature: 0.7, num_predict: 280 },
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt(facts) },
           { role: 'user', content: buildUserPrompt(facts) },
         ],
       }),

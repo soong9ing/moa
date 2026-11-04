@@ -59,7 +59,7 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
     <section className="card llm">
       <header className="llm-head">
         <h3>
-          <Icon name="sparkle" size={18} /> 내 LLM이 설명하는 궁합
+          <Icon name="sparkle" size={18} /> 겹지인 LLM의 한마디
         </h3>
         <button type="button" className="icon-btn" aria-label="LLM 연결 설정" aria-expanded={showSettings} onClick={() => setShowSettings((v) => !v)}>
           <Icon name="sliders" size={18} />
@@ -80,17 +80,17 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
       {status === 'idle' && (
         <div className="llm-idle">
           <p className="muted">
-            점수 계산은 Moa 점수표로 끝났어요. 이 계산 결과를 내 LLM에 보내서, {item.profile.nickname}님이 왜 {item.rank}위인지 자연스러운 말로 설명받을 수 있어요.
+            점수는 위의 점수표에 다 나와 있어요. 이번엔 두 사람을 다 아는 친구(겹지인)처럼, 내 LLM이 {item.profile.nickname}님을 소개해 줄 거예요.
           </p>
           <button type="button" className="btn btn-primary" onClick={run}>
-            <Icon name="sparkle" size={18} /> LLM에게 설명 듣기
+            <Icon name="sparkle" size={18} /> 겹지인에게 소개받기
           </button>
         </div>
       )}
 
       {(status === 'loading' || status === 'done') && (
         <div className="llm-body" aria-live="polite">
-          {text ? <p className="llm-text">{text}{status === 'loading' && <span className="llm-caret" />}</p> : <p className="muted">LLM이 계산 결과를 읽고 있어요…</p>}
+          {text ? <p className="llm-text">{text}{status === 'loading' && <span className="llm-caret" />}</p> : <p className="muted">겹지인이 두 사람 이야기를 떠올리는 중…</p>}
           {status === 'loading' && (
             <button type="button" className="btn btn-small btn-ghost" onClick={() => { abortRef.current?.abort(); setStatus(text ? 'done' : 'idle') }}>
               멈추기
@@ -103,15 +103,15 @@ export function LlmExplain({ me, item, rec }: { me: Profile; item: RankedCandida
         <>
           {unsupported.length > 0 && (
             <p className="llm-warn" role="alert">
-              <Icon name="alert" size={16} /> LLM 설명에 계산 결과에 없는 숫자({unsupported.join(', ')})가 있어요. 점수는 위의 항목별 점수를 기준으로 봐 주세요.
+              <Icon name="alert" size={16} /> LLM이 계산 결과에 없는 숫자({unsupported.join(', ')})를 말했어요. 점수는 위의 점수표를 기준으로 봐 주세요.
             </p>
           )}
           <div className="llm-foot">
             <span className="muted small">
-              {model} 이(가) 작성한 설명이에요 · 점수는 Moa 점수표로 계산돼요
+              {model}이 쓴 소개예요 · 궁합 점수는 Moa 점수표로 계산돼요
             </span>
             <button type="button" className="btn btn-small btn-ghost" onClick={run}>
-              <Icon name="refresh" size={16} /> 다시 설명 듣기
+              <Icon name="refresh" size={16} /> 다른 말로 다시 듣기
             </button>
           </div>
         </>

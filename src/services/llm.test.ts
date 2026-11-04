@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { MOCK_PROFILES } from '../data/mockProfiles'
 import { recommend } from '../matching'
 import { EMPTY_PREFERENCES, type Profile } from '../types'
-import { ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers } from './llm'
+import { ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, systemPrompt } from './llm'
 
 const me: Profile = {
   id: 'user-me',
@@ -23,32 +23,40 @@ const me: Profile = {
 const rec = recommend(me, { ...EMPTY_PREFERENCES, ageMin: 24, ageMax: 28, religion: '무교', styleTags: ['미니멀'] }, MOCK_PROFILES)
 const top = rec.top!
 
-describe('LLM 설명용 사실 정리', () => {
-  it('1위의 실제 점수·순위·항목을 그대로 담는다', () => {
+describe('LLM 겹지인 소개용 정보 정리', () => {
+  it('1위의 실제 점수·순위를 숫자 검사용으로 그대로 담는다', () => {
     const f = buildFacts(me, top, rec)
     expect(f.them).toBe('해질녘')
     expect(f.total).toBe(100)
     expect(f.rank).toBe(1)
-    expect(f.categories).toHaveLength(7)
     expect(f.categories.reduce((s, c) => s + c.earned, 0)).toBe(f.total)
     expect(f.ruleBased[0]).toContain('2위')
   })
 
-  it('프롬프트에 총점과 항목별 점수가 들어가고, 미사용 항목은 미사용으로 표시된다', () => {
-    const p = buildUserPrompt(buildFacts(me, top, rec))
-    expect(p).toContain('총점: 100점')
-    expect(p).toContain('공통 취미: 30/30점')
-    expect(p).toContain('1위')
-    const noPrefs = recommend(me, { ...EMPTY_PREFERENCES }, MOCK_PROFILES)
-    const p2 = buildUserPrompt(buildFacts(me, noPrefs.top!, noPrefs))
-    expect(p2).toContain('선호 나이 범위: 미사용')
+  it('겹치는 점·다른 점을 점수 계산과 같은 데이터에서 뽑는다', () => {
+    const f = buildFacts(me, top, rec)
+    expect(f.same).toContain('공통 취미: 사진, 산책, 독서, 영화, 그림')
+    expect(f.same).toContain('여행 스타일: 둘 다 계획형')
+    expect(f.same.some((x) => x.startsWith('나이:'))).toBe(true)
+    const second = rec.ranked[1]
+    const f2 = buildFacts(me, second, rec)
+    expect(f2.different.some((x) => x.startsWith('성격:'))).toBe(true)
   })
 
-  it('2위 이하 후보는 1위와의 차이를 근거로 담는다', () => {
-    const second = rec.ranked[1]
-    const f = buildFacts(me, second, rec)
-    expect(f.rank).toBe(2)
-    expect(f.ruleBased[0]).toContain(`${top.score.total - second.score.total}점 낮은 2위`)
+  it('프롬프트에는 점수 숫자 대신 두 사람의 취향과 겹지인 역할이 들어간다', () => {
+    const f = buildFacts(me, top, rec)
+    const user = buildUserPrompt(f)
+    expect(user).toContain('겹치는 점:')
+    expect(user).toContain('해질녘 (소개해 줄 사람)')
+    expect(user).not.toContain('100점')
+    expect(systemPrompt(f)).toContain('겹지인')
+    expect(systemPrompt(f)).toContain('해질녘을 소개해 주는 중')
+  })
+
+  it('선호 나이를 설정하지 않으면 나이를 겹치는 점으로 말하지 않는다', () => {
+    const noPrefs = recommend(me, { ...EMPTY_PREFERENCES }, MOCK_PROFILES)
+    const f = buildFacts(me, noPrefs.top!, noPrefs)
+    expect(f.same.some((x) => x.startsWith('나이:'))).toBe(false)
   })
 })
 
