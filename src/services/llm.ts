@@ -433,6 +433,8 @@ export async function streamExplanation(
   // Ollama는 한 줄에 JSON 하나씩(NDJSON) 보내요
   // qwen3 계열이 <think>…</think> 생각 과정을 내보내면 화면에는 빼고 보여 줘요
   const think = new ThinkFilter()
+  // 작은 모델은 3문장을 넘겨 쓰곤 해서, 3문장이 끝나면 거기서 멈춰요 (더 빨리 끝나기도 해요)
+  const limit = new SentenceLimit(3)
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buf = ''
@@ -448,14 +450,57 @@ export async function streamExplanation(
       const msg = JSON.parse(line) as { message?: { content?: string }; error?: string }
       if (msg.error) throw new LlmError(msg.error, 'http')
       if (msg.message?.content) {
-        const visible = think.push(msg.message.content)
+        const visible = limit.push(think.push(msg.message.content))
         if (visible) onToken(visible)
+        if (limit.full) {
+          reader.cancel().catch(() => {})
+          return model
+        }
       }
     }
   }
-  const rest = think.flush()
+  const rest = limit.flush(think.flush())
   if (rest) onToken(rest)
   return model
+}
+
+/**
+ * 정해진 문장 수까지만 내보내요.
+ * 문장 끝(. ! ? ~ 와 그 묶음) 뒤에 띄어쓰기가 오면 한 문장으로 세요.
+ */
+export class SentenceLimit {
+  private held = ''
+  private count = 0
+  full = false
+  constructor(private readonly max: number) {}
+
+  push(chunk: string): string {
+    if (this.full || !chunk) return ''
+    this.held += chunk
+    let out = ''
+    const re = /[.!?~]+(?=\s)/g
+    let m: RegExpExecArray | null
+    let cut = 0
+    while ((m = re.exec(this.held))) {
+      this.count++
+      cut = m.index + m[0].length
+      if (this.count >= this.max) {
+        this.full = true
+        break
+      }
+    }
+    out = this.held.slice(0, cut)
+    this.held = this.held.slice(cut)
+    if (this.full) this.held = ''
+    return out
+  }
+
+  flush(chunk = ''): string {
+    if (this.full) return ''
+    const rest = this.held + chunk
+    this.held = ''
+    return rest
+  }
 }
 
 /**

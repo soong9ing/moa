@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { MOCK_PROFILES } from '../data/mockProfiles'
 import { recommend } from '../matching'
 import { EMPTY_PREFERENCES, type Profile } from '../types'
-import { LlmError, ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, isAllowedLlmUrl, isRemoteLlm, listModels, pickModel, speaksAsParticipant, systemPrompt, talkingPoints } from './llm'
+import { LlmError, SentenceLimit, ThinkFilter, buildFacts, buildUserPrompt, findUnsupportedNumbers, isAllowedLlmUrl, isRemoteLlm, listModels, pickModel, speaksAsParticipant, systemPrompt, talkingPoints } from './llm'
 
 const me: Profile = {
   id: 'user-me',
@@ -148,5 +148,20 @@ describe('제3자 말투 검사', () => {
   it('두 사람을 이름으로 부르면 통과한다', () => {
     expect(speaksAsParticipant('두 사람은 둘 다 계획적인 성향이라 약속 잡을 때부터 척척 맞을 것 같아! 수경은 차분하고 코드몽키는 이성적인 편이라, 서로의 새로운 매력을 발견하는 재미도 있을 거야~')).toBe(false)
     expect(speaksAsParticipant('두 사람은 운동하고 맛있는 거 먹으러 다니면 하루가 금방 갈 것 같아. 나들이도 잘 맞겠는데?')).toBe(false)
+  })
+})
+
+describe('3문장에서 멈추기', () => {
+  it('조각나 들어와도 3번째 문장 끝에서 자른다', () => {
+    const l = new SentenceLimit(3)
+    const text = '두 사람은 영화를 좋아해! 산책도 잘 맞겠는데? 서로 잘 챙겨 줄 것 같아~ 넷째 문장은 안 보여요.'
+    const out = text.match(/.{1,5}/g)!.map((c) => l.push(c)).join('') + l.flush()
+    expect(out).toBe('두 사람은 영화를 좋아해! 산책도 잘 맞겠는데? 서로 잘 챙겨 줄 것 같아~')
+    expect(l.full).toBe(true)
+  })
+  it('3문장보다 짧으면 끝까지 다 보여 준다', () => {
+    const l = new SentenceLimit(3)
+    const out = ['두 사람은 ', '잘 맞아! 기대', '돼.'].map((c) => l.push(c)).join('') + l.flush()
+    expect(out).toBe('두 사람은 잘 맞아! 기대돼.')
   })
 })
